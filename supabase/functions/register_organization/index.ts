@@ -53,6 +53,8 @@ Deno.serve(async (req: Request) => {
     return createErrorResponse('Method not allowed', 405);
   }
 
+  // This is a public registration endpoint - no authentication required
+
   try {
     const body: RegisterOrganizationRequest = await req.json();
 
