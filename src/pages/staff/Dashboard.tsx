@@ -12,8 +12,8 @@ export const StaffDashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats>({
     total_orders: 0,
     total_revenue: 0,
-    active_employees: 0,
-    active_vendors: 0,
+    total_employees: 0,
+    total_vendors: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -44,8 +44,8 @@ export const StaffDashboard: React.FC = () => {
       setStats({
         total_orders: orders?.length || 0,
         total_revenue: totalRevenue,
-        active_employees: employees?.length || 0,
-        active_vendors: vendors?.length || 0,
+        total_employees: employees?.length || 0,
+        total_vendors: vendors?.length || 0,
       });
     } catch (error: any) {
       toast.error('Failed to load dashboard stats');
@@ -69,14 +69,14 @@ export const StaffDashboard: React.FC = () => {
       color: 'green',
     },
     {
-      title: 'Active Employees',
-      value: stats.active_employees,
+      title: 'Total Employees',
+      value: stats.total_employees,
       icon: Users,
       color: 'orange',
     },
     {
-      title: 'Active Vendors',
-      value: stats.active_vendors,
+      title: 'Total Vendors',
+      value: stats.total_vendors,
       icon: Store,
       color: 'purple',
     },

@@ -103,8 +103,8 @@ export interface CartItem {
 export interface DashboardStats {
   total_orders: number;
   total_revenue: number;
-  active_employees: number;
-  active_vendors: number;
+  total_employees: number;
+  total_vendors: number;
 }
 
 // API Response types

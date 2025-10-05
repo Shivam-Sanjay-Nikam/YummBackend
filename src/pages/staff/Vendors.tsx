@@ -66,9 +66,6 @@ export const StaffVendors: React.FC = () => {
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <Store className="w-6 h-6 text-orange-600" />
                 </div>
-                <Badge variant="success">
-                  Active
-                </Badge>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{vendor.name}</h3>
               <p className="text-sm text-gray-600 mb-2">{vendor.email}</p>
