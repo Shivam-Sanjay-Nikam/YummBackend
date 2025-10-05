@@ -6,6 +6,7 @@ import { ShoppingBag, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { confirmManager } from '../../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 
 export const EmployeeOrders: React.FC = () => {
@@ -35,7 +36,15 @@ export const EmployeeOrders: React.FC = () => {
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    if (!confirm('Are you sure you want to request cancellation for this order? The vendor will need to approve your request.')) {
+    const confirmed = await confirmManager.confirm({
+      title: 'Cancel Order Request',
+      message: 'Are you sure you want to request cancellation for this order? The vendor will need to approve your request.',
+      type: 'warning',
+      confirmText: 'Request Cancel',
+      cancelText: 'Keep Order'
+    });
+    
+    if (!confirmed) {
       return;
     }
 

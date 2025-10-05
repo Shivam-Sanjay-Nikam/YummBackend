@@ -9,6 +9,7 @@ import { MenuItem, MenuItemStatus } from '../../types';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
+import { confirmManager } from '../../components/ui/ConfirmDialog';
 import toast from 'react-hot-toast';
 
 export const VendorMenu: React.FC = () => {
@@ -48,7 +49,15 @@ export const VendorMenu: React.FC = () => {
   };
 
   const handleDelete = async (item: MenuItem) => {
-    if (!confirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`)) {
+    const confirmed = await confirmManager.confirm({
+      title: 'Delete Menu Item',
+      message: `Are you sure you want to delete "${item.name}"? This action cannot be undone.`,
+      type: 'danger',
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    
+    if (!confirmed) {
       return;
     }
 
