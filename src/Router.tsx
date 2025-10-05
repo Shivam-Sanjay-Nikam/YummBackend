@@ -8,6 +8,8 @@ import { Register } from './pages/Register';
 import { StaffDashboard } from './pages/staff/Dashboard';
 import { StaffEmployees } from './pages/staff/Employees';
 import { StaffVendors } from './pages/staff/Vendors';
+import { StaffManagement } from './pages/staff/StaffManagement';
+import { OrganizationSettings } from './pages/staff/OrganizationSettings';
 import { EmployeeBrowse } from './pages/employee/Browse';
 import { EmployeeCart } from './pages/employee/Cart';
 import { EmployeeOrders } from './pages/employee/Orders';
@@ -81,6 +83,24 @@ export const Router: React.FC = () => {
           <ProtectedRoute allowedRoles={['organization_staff']}>
             <Layout>
               <StaffVendors />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
+      if (path === '/staff/management') {
+        return (
+          <ProtectedRoute allowedRoles={['organization_staff']}>
+            <Layout>
+              <StaffManagement />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
+      if (path === '/staff/settings') {
+        return (
+          <ProtectedRoute allowedRoles={['organization_staff']}>
+            <Layout>
+              <OrganizationSettings />
             </Layout>
           </ProtectedRoute>
         );

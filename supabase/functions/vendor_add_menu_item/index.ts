@@ -1,7 +1,7 @@
 // Add menu item - only accessible by vendor
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSuccessResponse, createErrorResponse, handleCors } from '../shared/utils.ts';
-import { authenticateUser } from '../shared/auth.ts';
+import { authenticateUserByEmail } from '../shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -9,6 +9,7 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface AddMenuItemRequest {
+  user_email: string;
   name: string;
   price: number;
   image_url?: string;
@@ -37,20 +38,24 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    const authResult = await authenticateUser(authHeader || '');
+    const body: AddMenuItemRequest = await req.json();
+
+    // Validate required fields
+    if (!body.user_email) {
+      return createErrorResponse('User email is required', 400);
+    }
+
+    // Authenticate user by email
+    const authResult = await authenticateUserByEmail(body.user_email);
     
     if (!authResult.success || !authResult.user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse('Authentication failed', 401);
     }
 
     // Check if user is vendor
     if (authResult.user.role !== 'vendor') {
       return createErrorResponse('Only vendors can add menu items', 403);
     }
-
-    const body: AddMenuItemRequest = await req.json();
 
     // Validate required fields
     if (!body.name || body.price === undefined) {

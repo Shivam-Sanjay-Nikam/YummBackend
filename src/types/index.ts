@@ -12,6 +12,7 @@ export interface User {
   user_id: string; // ID from the actual user record in the respective table
   name?: string;
   balance?: number;
+  org_name?: string; // Organization name for display
 }
 
 export interface Organization {
@@ -20,6 +21,16 @@ export interface Organization {
   latitude?: number;
   longitude?: number;
   special_number?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrganizationStaff {
+  id: string;
+  org_id: string;
+  name: string;
+  email: string;
+  phone_number?: string;
   created_at: string;
   updated_at: string;
 }

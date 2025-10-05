@@ -21,6 +21,81 @@ export interface AuthResult {
   error?: string;
 }
 
+export async function authenticateUserByEmail(userEmail: string): Promise<AuthResult> {
+  try {
+    if (!userEmail) {
+      return {
+        success: false,
+        error: 'User email is required'
+      };
+    }
+
+    // Check which table the user exists in and get their role
+    let userRecord: any = null;
+    let role: 'organization_staff' | 'employee' | 'vendor' = 'organization_staff';
+
+    // Check organization_staff table first
+    const { data: staffRecord, error: staffError } = await supabase
+      .from('organization_staff')
+      .select('id, org_id, email, name')
+      .eq('email', userEmail)
+      .single();
+
+    if (staffRecord && !staffError) {
+      userRecord = staffRecord;
+      role = 'organization_staff';
+    } else {
+      // Check employees table
+      const { data: employeeRecord, error: employeeError } = await supabase
+        .from('employees')
+        .select('id, org_id, email, name')
+        .eq('email', userEmail)
+        .single();
+
+      if (employeeRecord && !employeeError) {
+        userRecord = employeeRecord;
+        role = 'employee';
+      } else {
+        // Check vendors table
+        const { data: vendorRecord, error: vendorError } = await supabase
+          .from('vendors')
+          .select('id, org_id, email, name')
+          .eq('email', userEmail)
+          .single();
+
+        if (vendorRecord && !vendorError) {
+          userRecord = vendorRecord;
+          role = 'vendor';
+        }
+      }
+    }
+
+    if (!userRecord) {
+      return {
+        success: false,
+        error: 'User not found in any role table'
+      };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: userRecord.id,
+        email: userRecord.email,
+        role: role,
+        org_id: userRecord.org_id,
+        user_id: userRecord.id
+      }
+    };
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return {
+      success: false,
+      error: 'Authentication failed'
+    };
+  }
+}
+
 export async function authenticateUser(authHeader: string): Promise<AuthResult> {
   try {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

@@ -1,0 +1,4 @@
+name,email,password,phone_number
+John Admin,john@company.com,password123,+1234567890
+Jane Manager,jane@company.com,password456,+1234567891
+Mike Supervisor,mike@company.com,password789,+1234567892

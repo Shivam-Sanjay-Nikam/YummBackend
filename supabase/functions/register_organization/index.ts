@@ -123,7 +123,7 @@ Deno.serve(async (req: Request) => {
       .from('organization_staff')
       .insert({
         org_id: organization.id,
-        name: body.staff_name || 'Admin', // Default to 'Admin' if not provided
+        name: body.staff_name || body.org_name, // Default to organization name if not provided
         email: body.staff_email,
         phone_number: body.staff_phone
       })
@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
       body.staff_password,
       {
         org_id: organization.id,
-        name: body.staff_name || 'Admin', // Default to 'Admin' if not provided
+        name: body.staff_name || body.org_name, // Default to organization name if not provided
         phone_number: body.staff_phone
       },
       'organization_staff'

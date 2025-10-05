@@ -88,8 +88,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     localStorage.removeItem('user');
     localStorage.removeItem('cart'); // Clear cart data too
     set({ user: null });
-    // Redirect to login page after logout
-    window.location.href = '/login';
+    // Redirect to landing page after logout
+    window.location.href = '/';
   },
 
   refreshUser: async () => {

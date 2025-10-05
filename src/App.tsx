@@ -1,11 +1,13 @@
 import { Router } from './Router';
-import { Toaster } from 'react-hot-toast';
+import { NotificationContainer } from './components/ui/Notification';
+import { ConfirmContainer } from './components/ui/ConfirmDialog';
 
 function App() {
   return (
     <>
       <Router />
-      <Toaster position="top-right" />
+      <NotificationContainer />
+      <ConfirmContainer />
     </>
   );
 }

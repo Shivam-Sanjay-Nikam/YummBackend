@@ -33,11 +33,15 @@ Deno.serve(async (req: Request) => {
     // Get user info from request body for custom auth
     const body: DeleteVendorRequest = await req.json();
     
+    console.log('Delete vendor request:', { vendor_id: body.vendor_id, user_email: body.user_email });
+    
     if (!body.user_email) {
+      console.error('Missing user_email in request');
       return createErrorResponse('User email required for authentication', 401);
     }
 
     if (!body.vendor_id) {
+      console.error('Missing vendor_id in request');
       return createErrorResponse('Vendor ID is required', 400);
     }
 
@@ -49,8 +53,11 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (userError || !userRecord) {
+      console.error('User authentication failed:', userError);
       return createErrorResponse('User not found or not authorized', 401);
     }
+
+    console.log('User authenticated:', { user_id: userRecord.id, org_id: userRecord.org_id });
 
     // Check if vendor exists and belongs to the same organization
     const { data: existingVendor, error: vendorError } = await supabase
@@ -61,10 +68,13 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (vendorError || !existingVendor) {
+      console.error('Vendor not found or not authorized:', vendorError);
       return createErrorResponse('Vendor not found or not authorized', 404);
     }
 
-    // Check if vendor has any orders (optional - you might want to prevent deletion if they have orders)
+    console.log('Vendor found:', { vendor_id: existingVendor.id, vendor_name: existingVendor.name });
+
+    // Check if vendor has any orders (for warning purposes)
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('id')
@@ -73,14 +83,9 @@ Deno.serve(async (req: Request) => {
 
     if (ordersError) {
       console.error('Error checking orders:', ordersError);
-      // Continue with deletion even if we can't check orders
     }
 
-    if (orders && orders.length > 0) {
-      return createErrorResponse('Cannot delete vendor with existing orders. Please handle their orders first.', 400);
-    }
-
-    // Check if vendor has any menu items
+    // Check if vendor has any menu items (for warning purposes)
     const { data: menuItems, error: menuError } = await supabase
       .from('menu_items')
       .select('id')
@@ -89,22 +94,29 @@ Deno.serve(async (req: Request) => {
 
     if (menuError) {
       console.error('Error checking menu items:', menuError);
-      // Continue with deletion even if we can't check menu items
     }
 
+    // Log warnings if vendor has related data
+    if (orders && orders.length > 0) {
+      console.warn(`Vendor ${body.vendor_id} has ${orders.length} orders - proceeding with deletion`);
+    }
     if (menuItems && menuItems.length > 0) {
-      return createErrorResponse('Cannot delete vendor with existing menu items. Please delete their menu items first.', 400);
+      console.warn(`Vendor ${body.vendor_id} has ${menuItems.length} menu items - proceeding with deletion`);
     }
 
     // Delete vendor record
+    console.log('Attempting to delete vendor:', body.vendor_id);
     const { error: deleteError } = await supabase
       .from('vendors')
       .delete()
       .eq('id', body.vendor_id);
 
     if (deleteError) {
+      console.error('Failed to delete vendor:', deleteError);
       return createErrorResponse(`Failed to delete vendor: ${deleteError.message}`, 400);
     }
+
+    console.log('Vendor deleted successfully:', body.vendor_id);
 
     const response: DeleteVendorResponse = {
       message: 'Vendor deleted successfully',

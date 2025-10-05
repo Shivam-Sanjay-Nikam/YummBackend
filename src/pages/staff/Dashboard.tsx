@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Users, Store, IndianRupee, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Users, Store, IndianRupee, ShoppingCart, RefreshCw, UserCog, Settings } from 'lucide-react';
 import { DashboardStats } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -139,8 +139,10 @@ export const StaffDashboard: React.FC = () => {
           <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
         </CardHeader>
         <CardBody className="space-y-3">
+          <QuickActionButton icon={UserCog} text="Manage Staff" href="/staff/management" />
           <QuickActionButton icon={Users} text="Add Employee" href="/staff/employees" />
           <QuickActionButton icon={Store} text="Add Vendor" href="/staff/vendors" />
+          <QuickActionButton icon={Settings} text="Organization Settings" href="/staff/settings" />
         </CardBody>
       </Card>
     </div>

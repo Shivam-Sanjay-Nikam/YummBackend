@@ -1,0 +1,11 @@
+name,email,password,phone_number,special_number,balance
+John Doe,john.doe@company.com,password123,+1234567890,EMP001,100.00
+Jane Smith,jane.smith@company.com,password456,+1234567891,EMP002,150.50
+Mike Johnson,mike.johnson@company.com,password789,+1234567892,EMP003,75.25
+Sarah Wilson,sarah.wilson@company.com,password101,+1234567893,EMP004,200.00
+David Brown,david.brown@company.com,password202,+1234567894,EMP005,125.75
+Lisa Davis,lisa.davis@company.com,password303,+1234567895,EMP006,300.00
+Tom Miller,tom.miller@company.com,password404,+1234567896,EMP007,50.00
+Amy Garcia,amy.garcia@company.com,password505,+1234567897,EMP008,175.25
+Chris Rodriguez,chris.rodriguez@company.com,password606,+1234567898,EMP009,225.50
+Maria Martinez,maria.martinez@company.com,password707,+1234567899,EMP010,100.00

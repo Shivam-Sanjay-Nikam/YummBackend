@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
-import { Plus, CreditCard as Edit2, UtensilsCrossed } from 'lucide-react';
+import { Plus, Edit3, UtensilsCrossed, Trash2 } from 'lucide-react';
 import { MenuItem, MenuItemStatus } from '../../types';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabase';
@@ -46,6 +46,20 @@ export const VendorMenu: React.FC = () => {
     setEditingItem(item);
   };
 
+  const handleDelete = async (item: MenuItem) => {
+    if (!confirm(`Are you sure you want to delete "${item.name}"? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      await api.vendor.deleteMenuItem({ menu_item_id: item.id });
+      toast.success('Menu item deleted successfully');
+      loadMenuItems();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to delete menu item');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -75,12 +89,22 @@ export const VendorMenu: React.FC = () => {
                 <Badge variant={item.status === 'active' ? 'success' : 'gray'}>
                   {item.status === 'active' ? 'Active' : 'Inactive'}
                 </Badge>
-                <button
-                  onClick={() => handleEdit(item)}
-                  className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
+                <div className="flex space-x-1">
+                  <button
+                    onClick={() => handleEdit(item)}
+                    className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
+                    title="Edit item"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(item)}
+                    className="p-2 text-gray-600 hover:text-red-600 transition-colors"
+                    title="Delete item"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.name}</h3>
               {item.description && (
@@ -273,8 +297,13 @@ const EditMenuItemModal: React.FC<{
     setLoading(true);
 
     try {
-      // For now, we'll just reload since we don't have an update endpoint
-      // In a real app, you'd call an API to update the menu item
+      await api.vendor.updateMenuItem({
+        menu_item_id: item.id,
+        name,
+        price: parseFloat(price),
+        image_url: undefined,
+        status,
+      });
       toast.success('Menu item updated successfully');
       onSuccess();
     } catch (error: any) {

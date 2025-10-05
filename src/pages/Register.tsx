@@ -212,9 +212,12 @@ export const Register: React.FC = () => {
                     name="staff_name"
                     value={formData.staff_name}
                     onChange={handleInputChange}
-                    placeholder="Enter your name (optional)"
+                    placeholder="Enter your name (defaults to organization name)"
                     className="h-12 text-base"
                   />
+                  <p className="text-xs text-gray-500 mt-1">
+                    If left blank, will use the organization name as staff name
+                  </p>
                 </div>
                 <div className="space-y-1">
                   <label className="text-sm font-medium text-gray-700">

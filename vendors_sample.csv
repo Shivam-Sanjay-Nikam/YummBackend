@@ -1,0 +1,11 @@
+name,email,password,phone_number,latitude,longitude
+Pizza Palace,pizza@palace.com,password123,+1234567001,40.7128,-74.0060
+Burger King,contact@burgerking.com,password456,+1234567002,40.7589,-73.9851
+Taco Bell,orders@tacobell.com,password789,+1234567003,40.7505,-73.9934
+McDonald's,info@mcdonalds.com,password101,+1234567004,40.7614,-73.9776
+Subway,orders@subway.com,password202,+1234567005,40.7505,-73.9934
+KFC,contact@kfc.com,password303,+1234567006,40.7589,-73.9851
+Starbucks,orders@starbucks.com,password404,+1234567007,40.7128,-74.0060
+Dunkin Donuts,info@dunkin.com,password505,+1234567008,40.7505,-73.9934
+Chipotle,orders@chipotle.com,password606,+1234567009,40.7614,-73.9776
+Domino's,orders@dominos.com,password707,+1234567010,40.7589,-73.9851

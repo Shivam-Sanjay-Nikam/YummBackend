@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, Store, ShoppingBag, ShoppingCart, UtensilsCrossed } from 'lucide-react';
+import { LayoutDashboard, Users, Store, ShoppingBag, ShoppingCart, UtensilsCrossed, UserCog, Settings } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 export const Sidebar: React.FC = () => {
@@ -9,8 +9,10 @@ export const Sidebar: React.FC = () => {
 
   const staffLinks = [
     { name: 'Dashboard', href: '/staff/dashboard', icon: LayoutDashboard },
+    { name: 'Staff Management', href: '/staff/management', icon: UserCog },
     { name: 'Employees', href: '/staff/employees', icon: Users },
     { name: 'Vendors', href: '/staff/vendors', icon: Store },
+    { name: 'Organization Settings', href: '/staff/settings', icon: Settings },
   ];
 
   const employeeLinks = [

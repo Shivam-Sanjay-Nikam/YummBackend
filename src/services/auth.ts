@@ -34,10 +34,11 @@ export async function authenticateUser(email: string, password: string): Promise
     const { data: staffData, error: staffError } = await supabase
       .from('organization_staff')
       .select('*')
-      .eq('email', email);
+      .eq('email', email)
+      .maybeSingle();
 
-    if (staffData && staffData.length > 0) {
-      const staff = staffData[0];
+    if (staffData && !staffError) {
+      const staff = staffData;
       // Verify password (assuming passwords are stored hashed in the database)
       if (verifyPassword(password, staff.password || '')) {
         return {
@@ -64,10 +65,11 @@ export async function authenticateUser(email: string, password: string): Promise
     const { data: employeeData, error: employeeError } = await supabase
       .from('employees')
       .select('*')
-      .eq('email', email);
+      .eq('email', email)
+      .maybeSingle();
 
-    if (employeeData && employeeData.length > 0) {
-      const employee = employeeData[0];
+    if (employeeData && !employeeError) {
+      const employee = employeeData;
       if (verifyPassword(password, employee.password || '')) {
         return {
           success: true,
@@ -94,10 +96,11 @@ export async function authenticateUser(email: string, password: string): Promise
     const { data: vendorData, error: vendorError } = await supabase
       .from('vendors')
       .select('*')
-      .eq('email', email);
+      .eq('email', email)
+      .maybeSingle();
 
-    if (vendorData && vendorData.length > 0) {
-      const vendor = vendorData[0];
+    if (vendorData && !vendorError) {
+      const vendor = vendorData;
       if (verifyPassword(password, vendor.password || '')) {
         return {
           success: true,
