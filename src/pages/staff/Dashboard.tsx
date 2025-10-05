@@ -99,9 +99,9 @@ export const StaffDashboard: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-600 mt-1">Overview of your organization</p>
         </div>
         <Button 
@@ -109,23 +109,24 @@ export const StaffDashboard: React.FC = () => {
           variant="outline" 
           size="sm"
           loading={loading}
+          className="w-full sm:w-auto"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
           Refresh
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {statCards.map((stat) => (
-          <Card key={stat.title}>
-            <CardBody>
+          <Card key={stat.title} className="hover:shadow-md transition-shadow">
+            <CardBody className="p-4 sm:p-6">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">{stat.value}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">{stat.title}</p>
+                  <p className="text-lg sm:text-2xl font-bold text-gray-900 mt-1 sm:mt-2">{stat.value}</p>
                 </div>
-                <div className={`p-3 rounded-lg ${colorClasses[stat.color as keyof typeof colorClasses]}`}>
-                  <stat.icon className="w-6 h-6" />
+                <div className={`p-2 sm:p-3 rounded-lg ${colorClasses[stat.color as keyof typeof colorClasses]} flex-shrink-0`}>
+                  <stat.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
               </div>
             </CardBody>
@@ -154,10 +155,12 @@ const QuickActionButton: React.FC<{ icon: any; text: string; href: string }> = (
   return (
     <a
       href={href}
-      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors"
+      className="flex items-center space-x-3 p-4 rounded-xl border border-gray-200 hover:bg-gray-50 hover:shadow-sm transition-all duration-200 active:scale-[0.98]"
     >
-      <Icon className="w-5 h-5 text-gray-600" />
-      <span className="text-sm font-medium text-gray-900">{text}</span>
+      <div className="p-2 bg-blue-100 rounded-lg flex-shrink-0">
+        <Icon className="w-5 h-5 text-blue-600" />
+      </div>
+      <span className="font-medium text-gray-900 text-sm sm:text-base">{text}</span>
     </a>
   );
 };

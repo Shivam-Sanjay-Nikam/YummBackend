@@ -95,83 +95,147 @@ export const StaffEmployees: React.FC = () => {
         </Button>
       </div>
 
-      <Card>
-        <CardBody className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Balance
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {employees.map((employee) => (
-                  <tr key={employee.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-600">{employee.email}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-green-600">
-                        ₹{employee.balance.toFixed(2)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleUpdateBalance(employee)}
-                          className="text-green-600 border-green-200 hover:bg-green-50"
-                        >
-                          <IndianRupee className="w-4 h-4 mr-1" />
-                          Balance
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(employee)}
-                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                        >
-                          <Edit2 className="w-4 h-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDelete(employee)}
-                          className="text-red-600 border-red-200 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          Delete
-                        </Button>
-                      </div>
-                    </td>
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <Card>
+          <CardBody className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Balance
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {employees.length === 0 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No employees yet. Add your first employee!</p>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {employees.map((employee) => (
+                    <tr key={employee.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-600">{employee.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-green-600">
+                          ₹{employee.balance.toFixed(2)}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleUpdateBalance(employee)}
+                            className="text-green-600 border-green-200 hover:bg-green-50"
+                          >
+                            <IndianRupee className="w-4 h-4 mr-1" />
+                            Balance
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(employee)}
+                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                          >
+                            <Edit2 className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDelete(employee)}
+                            className="text-red-600 border-red-200 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden space-y-4">
+        {employees.map((employee) => (
+          <Card key={employee.id} className="hover:shadow-md transition-shadow">
+            <CardBody className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <Users className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-900 text-base">{employee.name}</h3>
+                    <p className="text-sm text-gray-600">{employee.email}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold text-green-600">
+                    ₹{employee.balance.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-500">Balance</div>
+                </div>
               </div>
-            )}
-          </div>
-        </CardBody>
-      </Card>
+              
+              <div className="flex flex-wrap gap-2 mt-4">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleUpdateBalance(employee)}
+                  className="flex-1 min-w-0 text-green-600 border-green-200 hover:bg-green-50 text-xs py-2"
+                >
+                  <IndianRupee className="w-4 h-4 mr-1" />
+                  Balance
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleEdit(employee)}
+                  className="flex-1 min-w-0 text-blue-600 border-blue-200 hover:bg-blue-50 text-xs py-2"
+                >
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleDelete(employee)}
+                  className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 text-xs py-2"
+                >
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              </div>
+            </CardBody>
+          </Card>
+        ))}
+        
+        {employees.length === 0 && (
+          <Card>
+            <CardBody className="text-center py-12">
+              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">No employees yet. Add your first employee!</p>
+            </CardBody>
+          </Card>
+        )}
+      </div>
 
       <AddEmployeeModal
         isOpen={showAddModal}
@@ -352,19 +416,19 @@ const AddEmployeeModal: React.FC<{
             <p className="text-xs text-gray-500 mt-1">Starting balance for the employee</p>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose} 
-              className="flex-1 h-12 text-base font-medium"
+              className="w-full sm:flex-1 h-12 text-base font-medium"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               loading={loading} 
-              className="flex-1 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700"
+              className="w-full sm:flex-1 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700"
             >
               {loading ? 'Creating...' : 'Create Employee'}
             </Button>
@@ -430,11 +494,11 @@ const UpdateBalanceModal: React.FC<{
         <p className="text-sm text-gray-500">
           Enter a positive number to add funds, or a negative number to deduct.
         </p>
-        <div className="flex space-x-3">
-          <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3">
+          <Button type="button" variant="outline" onClick={onClose} className="w-full sm:flex-1 h-12 text-base font-medium">
             Cancel
           </Button>
-          <Button type="submit" loading={loading} className="flex-1">
+          <Button type="submit" loading={loading} className="w-full sm:flex-1 h-12 text-base font-medium">
             Update
           </Button>
         </div>
@@ -553,19 +617,19 @@ const EditEmployeeModal: React.FC<{
             />
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose} 
-              className="flex-1 h-12 text-base font-medium"
+              className="w-full sm:flex-1 h-12 text-base font-medium"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               loading={loading} 
-              className="flex-1 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700"
+              className="w-full sm:flex-1 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700"
             >
               {loading ? 'Updating...' : 'Update Employee'}
             </Button>
@@ -595,19 +659,19 @@ const DeleteEmployeeModal: React.FC<{
           </p>
         </div>
 
-        <div className="flex space-x-3 pt-4">
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
           <Button 
             type="button" 
             variant="outline" 
             onClick={onClose} 
-            className="flex-1 h-12 text-base font-medium"
+            className="w-full sm:flex-1 h-12 text-base font-medium"
           >
             Cancel
           </Button>
           <Button 
             type="button" 
             onClick={onConfirm}
-            className="flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700 text-white"
+            className="w-full sm:flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700 text-white"
           >
             Delete Employee
           </Button>

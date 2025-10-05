@@ -90,20 +90,21 @@ export const StaffVendors: React.FC = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {vendors.map((vendor) => (
-          <Card key={vendor.id} hover>
-            <CardBody>
-              <div className="flex items-start justify-between mb-3">
-                <div className="p-2 bg-orange-100 rounded-lg">
+          <Card key={vendor.id} className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
+            <CardBody className="p-4 sm:p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-orange-100 rounded-xl">
                   <Store className="w-6 h-6 text-orange-600" />
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex space-x-1">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleEdit(vendor)}
-                    className="text-blue-600 border-blue-200 hover:bg-blue-50 p-2"
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                    aria-label="Edit vendor"
                   >
                     <Edit2 className="w-4 h-4" />
                   </Button>
@@ -111,17 +112,21 @@ export const StaffVendors: React.FC = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => handleDelete(vendor)}
-                    className="text-red-600 border-red-200 hover:bg-red-50 p-2"
+                    className="text-red-600 border-red-200 hover:bg-red-50 p-2 rounded-lg transition-colors"
+                    aria-label="Delete vendor"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{vendor.name}</h3>
-              <p className="text-sm text-gray-600 mb-2">{vendor.email}</p>
-              {vendor.phone_number && (
-                <p className="text-sm text-gray-500 mb-4">{vendor.phone_number}</p>
-              )}
+              
+              <div className="space-y-2">
+                <h3 className="text-lg font-bold text-gray-900 leading-tight">{vendor.name}</h3>
+                <p className="text-sm text-gray-600 break-all">{vendor.email}</p>
+                {vendor.phone_number && (
+                  <p className="text-sm text-gray-500">{vendor.phone_number}</p>
+                )}
+              </div>
             </CardBody>
           </Card>
         ))}
@@ -294,19 +299,19 @@ const AddVendorModal: React.FC<{
             <p className="text-xs text-gray-500 mt-1">Optional - for contact purposes</p>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose} 
-              className="flex-1 h-12 text-base font-medium"
+              className="w-full sm:flex-1 h-12 text-base font-medium"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               loading={loading} 
-              className="flex-1 h-12 text-base font-medium bg-orange-600 hover:bg-orange-700"
+              className="w-full sm:flex-1 h-12 text-base font-medium bg-orange-600 hover:bg-orange-700"
             >
               {loading ? 'Creating...' : 'Create Vendor'}
             </Button>
@@ -411,19 +416,19 @@ const EditVendorModal: React.FC<{
             />
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose} 
-              className="flex-1 h-12 text-base font-medium"
+              className="w-full sm:flex-1 h-12 text-base font-medium"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               loading={loading} 
-              className="flex-1 h-12 text-base font-medium bg-orange-600 hover:bg-orange-700"
+              className="w-full sm:flex-1 h-12 text-base font-medium bg-orange-600 hover:bg-orange-700"
             >
               {loading ? 'Updating...' : 'Update Vendor'}
             </Button>
@@ -453,19 +458,19 @@ const DeleteVendorModal: React.FC<{
           </p>
         </div>
 
-        <div className="flex space-x-3 pt-4">
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
           <Button 
             type="button" 
             variant="outline" 
             onClick={onClose} 
-            className="flex-1 h-12 text-base font-medium"
+            className="w-full sm:flex-1 h-12 text-base font-medium"
           >
             Cancel
           </Button>
           <Button 
             type="button" 
             onClick={onConfirm}
-            className="flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700 text-white"
+            className="w-full sm:flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700 text-white"
           >
             Delete Vendor
           </Button>
