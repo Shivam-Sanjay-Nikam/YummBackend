@@ -1,10 +1,3 @@
-# Dependencies
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-
 # Environment variables
 .env
 .env.local
@@ -12,25 +5,20 @@ pnpm-debug.log*
 .env.test.local
 .env.production.local
 
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 # Build outputs
 dist/
 build/
-.next/
-out/
-
-# Vite
 .vite/
-vite.config.js.timestamp-*
 
-# TypeScript
-*.tsbuildinfo
-
-# IDE and Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Cache
+.eslintcache
+.parcel-cache/
 
 # OS generated files
 .DS_Store
@@ -41,102 +29,25 @@ vite.config.js.timestamp-*
 ehthumbs.db
 Thumbs.db
 
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
 # Logs
-logs/
+logs
 *.log
 
 # Runtime data
-pids/
+pids
 *.pid
 *.seed
 *.pid.lock
 
 # Coverage directory used by tools like istanbul
 coverage/
-*.lcov
-
-# nyc test coverage
-.nyc_output
-
-# Dependency directories
-jspm_packages/
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache (https://parceljs.org/)
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Gatsby files
-.cache/
-public
-
-# Storybook build outputs
-.out
-.storybook-out
 
 # Temporary folders
 tmp/
 temp/
-
-# Supabase
-.supabase/
-supabase/.branches/
-supabase/.temp/
-
-# Local development
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Backup files
-*.backup
-*.bak
-*.tmp
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-
-# Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
-docker-compose.yaml
-
-# Testing
-coverage/
-.nyc_output/
-junit.xml
-
-# Misc
-*.tgz
-*.tar.gz
