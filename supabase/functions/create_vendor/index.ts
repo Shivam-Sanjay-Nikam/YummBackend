@@ -43,20 +43,32 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    const authResult = await authenticateUser(authHeader || '');
+    // Get user info from request body for custom auth
+    const body: CreateVendorRequest & { user_email?: string } = await req.json();
     
-    if (!authResult.success || !authResult.user) {
-      return createErrorResponse('Authentication required', 401);
+    if (!body.user_email) {
+      return createErrorResponse('User email required for authentication', 401);
     }
 
-    // Check if user is organization_staff
-    if (authResult.user.role !== 'organization_staff') {
-      return createErrorResponse('Only organization staff can create vendors', 403);
+    // Get user info from database
+    const { data: userRecord, error: userError } = await supabase
+      .from('organization_staff')
+      .select('id, org_id, email')
+      .eq('email', body.user_email)
+      .single();
+
+    if (userError || !userRecord) {
+      return createErrorResponse('User not found or not authorized', 401);
     }
 
-    const body: CreateVendorRequest = await req.json();
+    // Check if user is organization_staff (already verified by query above)
+    const authUser = {
+      id: userRecord.id,
+      email: userRecord.email,
+      role: 'organization_staff' as const,
+      org_id: userRecord.org_id,
+      user_id: userRecord.id
+    };
 
     // Validate required fields
     if (!body.name || !body.email || !body.password) {
@@ -106,7 +118,7 @@ Deno.serve(async (req: Request) => {
     const { data: vendor, error: vendorError } = await supabase
       .from('vendors')
       .insert({
-        org_id: authResult.user.org_id,
+        org_id: authUser.org_id,
         name: body.name,
         email: body.email,
         phone_number: body.phone_number,
@@ -125,7 +137,7 @@ Deno.serve(async (req: Request) => {
       body.email,
       body.password,
       {
-        org_id: authResult.user.org_id,
+        org_id: authUser.org_id,
         name: body.name,
         phone_number: body.phone_number,
         latitude: body.latitude,

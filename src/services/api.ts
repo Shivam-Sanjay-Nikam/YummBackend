@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
 import { authenticateUser, createUser } from './auth';
+import { useAuthStore } from '../store/authStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sjtttdnqjgwggczhwzad.supabase.co/functions/v1';
 
@@ -134,7 +135,13 @@ export const api = {
       special_number?: string;
     }) => {
       try {
-        // Call the edge function instead of direct database insert
+        // Get current user for authentication
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Call the edge function with user email for authentication
         const { data: result, error } = await supabase.functions.invoke('create_employee', {
           body: {
             name: data.name,
@@ -142,7 +149,8 @@ export const api = {
             password: data.password,
             balance: data.balance || 0,
             phone_number: data.phone_number,
-            special_number: data.special_number
+            special_number: data.special_number,
+            user_email: user.email
           }
         });
 
@@ -174,7 +182,13 @@ export const api = {
       longitude?: number;
     }) => {
       try {
-        // Call the edge function instead of direct database insert
+        // Get current user for authentication
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Call the edge function with user email for authentication
         const { data: result, error } = await supabase.functions.invoke('create_vendor', {
           body: {
             name: data.name,
@@ -182,7 +196,8 @@ export const api = {
             password: data.password,
             phone_number: data.phone_number,
             latitude: data.latitude,
-            longitude: data.longitude
+            longitude: data.longitude,
+            user_email: user.email
           }
         });
 
