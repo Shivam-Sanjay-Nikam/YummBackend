@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
-import { authenticateUser, createUser, CustomUser } from './auth';
-import { useAuthStore } from '../store/authStore';
+import { authenticateUser, createUser } from './auth';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sjtttdnqjgwggczhwzad.supabase.co/functions/v1';
 
@@ -135,57 +134,33 @@ export const api = {
       special_number?: string;
     }) => {
       try {
-        // Get the current user's org_id
-        const { user } = useAuthStore.getState();
-        if (!user?.org_id) {
-          return { data: null, error: { message: 'User not authenticated' } };
-        }
-
-        // Create employee in the database directly
-        const { data: employeeData, error: employeeError } = await supabase
-          .from('employees')
-          .insert({
-            org_id: user.org_id,
+        // Call the edge function instead of direct database insert
+        const { data: result, error } = await supabase.functions.invoke('create_employee', {
+          body: {
             name: data.name,
             email: data.email,
+            password: data.password,
             balance: data.balance || 0,
             phone_number: data.phone_number,
-            special_number: data.special_number,
-          })
-          .select()
-          .single();
+            special_number: data.special_number
+          }
+        });
 
-        if (employeeError) {
-          return { data: null, error: employeeError };
+        if (error) {
+          console.error('Employee creation error:', error);
+          return { data: null, error: { message: error.message || 'Failed to create employee' } };
         }
 
-        // Create the user account
-        const authResult = await createUser(
-          data.email,
-          data.password,
-          data.name,
-          'employee',
-          user.org_id,
-          { employee_id: employeeData.id }
-        );
-
-        if (authResult.error) {
-          // If user creation fails, delete the employee record
-          await supabase.from('employees').delete().eq('id', employeeData.id);
-          return { data: null, error: { message: authResult.error } };
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to create employee' } };
         }
 
         return {
-          data: {
-            employee: employeeData,
-            auth: {
-              user_id: authResult.user?.id,
-              email: data.email,
-            }
-          },
+          data: result,
           error: null
         };
       } catch (error: any) {
+        console.error('Create employee error:', error);
         return { data: null, error: { message: error.message || 'Failed to create employee' } };
       }
     },
@@ -199,73 +174,33 @@ export const api = {
       longitude?: number;
     }) => {
       try {
-        // Get the current user's org_id
-        const { user } = useAuthStore.getState();
-        if (!user?.org_id) {
-          return { data: null, error: { message: 'User not authenticated' } };
+        // Call the edge function instead of direct database insert
+        const { data: result, error } = await supabase.functions.invoke('create_vendor', {
+          body: {
+            name: data.name,
+            email: data.email,
+            password: data.password,
+            phone_number: data.phone_number,
+            latitude: data.latitude,
+            longitude: data.longitude
+          }
+        });
+
+        if (error) {
+          console.error('Vendor creation error:', error);
+          return { data: null, error: { message: error.message || 'Failed to create vendor' } };
         }
 
-        // Create vendor in the database directly
-        const vendorInsertData: any = {
-          org_id: user.org_id,
-          name: data.name,
-          email: data.email,
-        };
-
-        // Only add optional fields if they have values
-        if (data.phone_number) {
-          vendorInsertData.phone_number = data.phone_number;
-        }
-        if (data.latitude !== undefined) {
-          vendorInsertData.latitude = data.latitude;
-        }
-        if (data.longitude !== undefined) {
-          vendorInsertData.longitude = data.longitude;
-        }
-
-        const { data: vendorData, error: vendorError } = await supabase
-          .from('vendors')
-          .insert(vendorInsertData)
-          .select();
-
-        if (vendorError) {
-          console.error('Vendor creation error:', vendorError);
-          return { data: null, error: vendorError };
-        }
-
-        if (!vendorData || vendorData.length === 0) {
-          return { data: null, error: { message: 'Failed to create vendor - no data returned' } };
-        }
-
-        const createdVendor = vendorData[0];
-
-        // Create the user account
-        const authResult = await createUser(
-          data.email,
-          data.password,
-          data.name,
-          'vendor',
-          user.org_id,
-          { vendor_id: createdVendor.id }
-        );
-
-        if (authResult.error) {
-          // If user creation fails, delete the vendor record
-          await supabase.from('vendors').delete().eq('id', createdVendor.id);
-          return { data: null, error: { message: authResult.error } };
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to create vendor' } };
         }
 
         return {
-          data: {
-            vendor: createdVendor,
-            auth: {
-              user_id: authResult.user?.id,
-              email: data.email,
-            }
-          },
+          data: result,
           error: null
         };
       } catch (error: any) {
+        console.error('Create vendor error:', error);
         return { data: null, error: { message: error.message || 'Failed to create vendor' } };
       }
     },
@@ -404,7 +339,7 @@ export const api = {
         .eq('email', userEmail)
         .single();
 
-      if (!userRecord) return { data: null, error: 'User not found' };
+      if (userError || !userRecord) return { data: null, error: userError?.message || 'User not found' };
 
       const { data, error } = await supabase
         .from('employees')
