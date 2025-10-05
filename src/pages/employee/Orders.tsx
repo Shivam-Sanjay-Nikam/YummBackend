@@ -35,13 +35,63 @@ export const EmployeeOrders: React.FC = () => {
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    try {
-      await api.employee.cancelOrderRequest({ order_id: orderId });
-      toast.success('Cancellation request sent');
-      loadOrders();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to cancel order');
+    if (!confirm('Are you sure you want to request cancellation for this order? The vendor will need to approve your request.')) {
+      return;
     }
+
+
+    try {
+      const response = await api.employee.cancelOrderRequest({ order_id: orderId });
+      if (response.data) {
+        toast.success('Cancellation request sent to vendor');
+        loadOrders();
+      } else {
+        // Show user-friendly error messages
+        if (response.error?.includes('cannot be cancelled once it has been given')) {
+          toast.error('This order cannot be cancelled once it has been given to the employee');
+        } else if (response.error?.includes('cannot be cancelled')) {
+          toast.error('This order cannot be cancelled in its current status');
+        } else {
+          toast.error(response.error || 'Failed to send cancellation request');
+        }
+      }
+    } catch (error: any) {
+      console.error('Cancel order error:', error);
+      const errorMessage = error.response?.data?.error || 
+                          error.response?.data?.message || 
+                          error.message || 
+                          'Failed to send cancellation request';
+      
+      // Show user-friendly error messages
+      if (errorMessage.includes('cannot be cancelled once it has been given')) {
+        toast.error('This order cannot be cancelled once it has been given to the employee');
+      } else if (errorMessage.includes('cannot be cancelled')) {
+        toast.error('This order cannot be cancelled in its current status');
+      } else {
+        toast.error(errorMessage);
+      }
+    }
+  };
+
+  const canCancelOrder = (order: Order) => {
+    // Check if order status allows cancellation
+    const cancellableStatuses = ['placed', 'preparing', 'prepared'];
+    if (!cancellableStatuses.includes(order.status)) {
+      return false;
+    }
+
+    // No time limit - can cancel anytime before 'given'
+    return true;
+  };
+
+  const getCancelButtonText = (order: Order) => {
+    if (!canCancelOrder(order)) {
+      if (order.status === 'given') {
+        return 'Already Given';
+      }
+      return 'Cannot Cancel';
+    }
+    return 'Request Cancel';
   };
 
   const getStatusBadge = (status: OrderStatus) => {
@@ -103,14 +153,21 @@ export const EmployeeOrders: React.FC = () => {
                   <p className="text-2xl font-bold text-green-600">
                     ₹{order.total_amount.toFixed(2)}
                   </p>
-                  {(order.status === 'placed' || order.status === 'preparing') && (
+                  {(order.status === 'placed' || order.status === 'preparing' || order.status === 'prepared') && (
                     <Button
                       size="sm"
-                      variant="danger"
-                      onClick={() => handleCancelOrder(order.id)}
+                      variant={canCancelOrder(order) ? "danger" : "secondary"}
+                      onClick={() => canCancelOrder(order) && handleCancelOrder(order.id)}
+                      disabled={!canCancelOrder(order)}
                       className="mt-2"
+                      title={!canCancelOrder(order) ? 
+                        (order.status === 'given' ? 
+                          'Order has already been given to employee' : 
+                          'Order cannot be cancelled in current status') : 
+                        'Request cancellation for this order'
+                      }
                     >
-                      Cancel
+                      {getCancelButtonText(order)}
                     </Button>
                   )}
                 </div>

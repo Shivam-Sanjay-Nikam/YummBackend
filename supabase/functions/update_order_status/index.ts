@@ -66,10 +66,10 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
     }
 
-    // Get order details
+    // Get order details including employee_id and total_amount for balance update
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, vendor_id, org_id, status, created_at')
+      .select('id, vendor_id, org_id, employee_id, total_amount, status, created_at')
       .eq('id', body.order_id)
       .single();
 
@@ -104,13 +104,106 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse(`Failed to update order status: ${updateError?.message}`, 400);
     }
 
+    // Handle balance updates based on status changes
+    if (body.status === 'given' && order.status !== 'given') {
+      // Status changed TO 'given' - deduct balance
+      try {
+        // Get current employee balance
+        const { data: employee, error: employeeError } = await supabase
+          .from('employees')
+          .select('balance')
+          .eq('id', order.employee_id)
+          .single();
+
+        if (employeeError || !employee) {
+          console.error('Failed to get employee balance:', employeeError);
+          // Don't fail the order update, just log the error
+        } else {
+          // Calculate new balance (deduct order amount)
+          const currentBalance = parseFloat(employee.balance.toString());
+          const orderAmount = parseFloat(order.total_amount.toString());
+          const newBalance = currentBalance - orderAmount;
+
+          // Check if employee has sufficient balance
+          if (newBalance < 0) {
+            console.warn(`Employee balance would go negative: ${currentBalance} - ${orderAmount} = ${newBalance}. Proceeding with negative balance.`);
+          }
+
+          // Update employee balance
+          const { error: balanceUpdateError } = await supabase
+            .from('employees')
+            .update({ 
+              balance: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', order.employee_id);
+
+          if (balanceUpdateError) {
+            console.error('Failed to update employee balance:', balanceUpdateError);
+            // Don't fail the order update, just log the error
+          } else {
+            console.log(`Employee balance deducted: ${currentBalance} - ${orderAmount} = ${newBalance}`);
+          }
+        }
+      } catch (balanceError) {
+        console.error('Error updating employee balance:', balanceError);
+        // Don't fail the order update, just log the error
+      }
+    } else if (order.status === 'given' && body.status !== 'given') {
+      // Status changed FROM 'given' to something else - restore balance
+      try {
+        // Get current employee balance
+        const { data: employee, error: employeeError } = await supabase
+          .from('employees')
+          .select('balance')
+          .eq('id', order.employee_id)
+          .single();
+
+        if (employeeError || !employee) {
+          console.error('Failed to get employee balance:', employeeError);
+          // Don't fail the order update, just log the error
+        } else {
+          // Calculate new balance (restore order amount)
+          const currentBalance = parseFloat(employee.balance.toString());
+          const orderAmount = parseFloat(order.total_amount.toString());
+          const newBalance = currentBalance + orderAmount;
+
+          // Update employee balance
+          const { error: balanceUpdateError } = await supabase
+            .from('employees')
+            .update({ 
+              balance: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', order.employee_id);
+
+          if (balanceUpdateError) {
+            console.error('Failed to restore employee balance:', balanceUpdateError);
+            // Don't fail the order update, just log the error
+          } else {
+            console.log(`Employee balance restored: ${currentBalance} + ${orderAmount} = ${newBalance}`);
+          }
+        }
+      } catch (balanceError) {
+        console.error('Error restoring employee balance:', balanceError);
+        // Don't fail the order update, just log the error
+      }
+    }
+
+    let message = `Order status updated to ${body.status}`;
+    if (body.status === 'given' && order.status !== 'given') {
+      message += '. Employee balance has been deducted.';
+    } else if (order.status === 'given' && body.status !== 'given') {
+      message += '. Employee balance has been restored.';
+    }
+
     const response: UpdateOrderStatusResponse = {
       order: {
         id: updatedOrder.id,
         status: updatedOrder.status,
         updated_at: updatedOrder.updated_at
       },
-      message: `Order status updated to ${body.status}`
+      message: message
     };
 
     return createSuccessResponse(response, 'Order status updated successfully');

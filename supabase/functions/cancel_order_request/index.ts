@@ -33,6 +33,7 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body: CancelOrderRequest = await req.json();
+    
 
     // Authenticate user using email
     if (!body.user_email) {
@@ -57,7 +58,7 @@ Deno.serve(async (req: Request) => {
 
     // Validate order_id format
     if (!validateUuid(body.order_id)) {
-      return createErrorResponse('Invalid order ID format', 400);
+      return createErrorResponse(`Invalid order ID format: ${body.order_id}`, 400);
     }
 
     // Get order details
@@ -82,19 +83,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // Check if order can be cancelled
-    const cancellableStatuses = ['placed', 'preparing'];
+    const cancellableStatuses = ['placed', 'preparing', 'prepared'];
     if (!cancellableStatuses.includes(order.status)) {
+      if (order.status === 'given') {
+        return createErrorResponse('Order cannot be cancelled once it has been given to the employee', 400);
+      }
       return createErrorResponse(`Order cannot be cancelled. Current status: ${order.status}`, 400);
-    }
-
-    // Check if order is too old (e.g., more than 1 hour)
-    const orderTime = new Date(order.created_at);
-    const currentTime = new Date();
-    const timeDiff = currentTime.getTime() - orderTime.getTime();
-    const hoursDiff = timeDiff / (1000 * 3600);
-
-    if (hoursDiff > 1) {
-      return createErrorResponse('Order is too old to be cancelled (more than 1 hour)', 400);
     }
 
     // Update order status to cancel_requested

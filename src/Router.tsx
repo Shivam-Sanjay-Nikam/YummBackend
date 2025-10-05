@@ -6,6 +6,7 @@ import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { StaffDashboard } from './pages/staff/Dashboard';
+import { StaffSales } from './pages/staff/Sales';
 import { StaffEmployees } from './pages/staff/Employees';
 import { StaffVendors } from './pages/staff/Vendors';
 import { StaffManagement } from './pages/staff/StaffManagement';
@@ -66,6 +67,15 @@ export const Router: React.FC = () => {
           <ProtectedRoute allowedRoles={['organization_staff']}>
             <Layout>
               <StaffDashboard />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
+      if (path === '/staff/sales') {
+        return (
+          <ProtectedRoute allowedRoles={['organization_staff']}>
+            <Layout>
+              <StaffSales />
             </Layout>
           </ProtectedRoute>
         );

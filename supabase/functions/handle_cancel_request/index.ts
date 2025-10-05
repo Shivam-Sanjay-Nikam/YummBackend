@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse('Action must be either "accept" or "reject"', 400);
     }
 
-    // Get order details with vendor information
+    // Get order details with vendor information and total amount
     const { data: order, error: orderError } = await supabase
       .from('orders')
       .select(`
@@ -75,6 +75,7 @@ Deno.serve(async (req: Request) => {
         vendor_id,
         org_id,
         status,
+        total_amount,
         created_at,
         employees!inner(name, email),
         vendors!inner(name)
@@ -101,68 +102,92 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse(`Order does not have a pending cancellation request. Current status: ${order.status}`, 400);
     }
 
-    let newStatus: string;
-    let message: string;
+    let response: HandleCancelResponse;
 
     if (body.action === 'accept') {
-      newStatus = 'cancelled';
-      message = 'Cancellation request accepted. Order has been cancelled.';
-    } else {
-      newStatus = 'preparing';
-      message = 'Cancellation request rejected. Order is back to preparing status.';
-    }
-
-    // Update order status
-    const { data: updatedOrder, error: updateError } = await supabase
-      .from('orders')
-      .update({ 
-        status: newStatus,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', body.order_id)
-      .select('id, status, updated_at')
-      .single();
-
-    if (updateError || !updatedOrder) {
-      return createErrorResponse(`Failed to update order: ${updateError?.message}`, 400);
-    }
-
-    // If cancellation was accepted, we might want to refund the employee's balance
-    if (body.action === 'accept') {
-      // Get order total for potential refund
-      const { data: orderItems, error: itemsError } = await supabase
-        .from('order_items')
-        .select('total_cost')
-        .eq('order_id', body.order_id);
-
-      if (!itemsError && orderItems) {
-        const totalRefund = orderItems.reduce((sum, item) => sum + item.total_cost, 0);
+      // When cancellation is accepted, delete the order and restore balance if needed
+      try {
+        // Check if balance was already deducted (order was previously 'given')
+        let balanceRestored = false;
         
-        // Update employee balance (add refund)
-        const { data: employee } = await supabase
+        // Get current employee balance
+        const { data: employee, error: employeeError } = await supabase
           .from('employees')
           .select('balance')
           .eq('id', order.employee_id)
           .single();
 
-        if (employee) {
-          const newBalance = employee.balance + totalRefund;
-          await supabase
-            .from('employees')
-            .update({ balance: newBalance })
-            .eq('id', order.employee_id);
-        }
-      }
-    }
+        if (!employeeError && employee) {
+          // Restore balance (add back the order amount)
+          const currentBalance = parseFloat(employee.balance.toString());
+          const orderAmount = parseFloat(order.total_amount.toString());
+          const newBalance = currentBalance + orderAmount;
 
-    const response: HandleCancelResponse = {
-      order: {
-        id: updatedOrder.id,
-        status: updatedOrder.status,
-        updated_at: updatedOrder.updated_at
-      },
-      message
-    };
+          const { error: balanceUpdateError } = await supabase
+            .from('employees')
+            .update({ 
+              balance: newBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', order.employee_id);
+
+          if (!balanceUpdateError) {
+            balanceRestored = true;
+            console.log(`Employee balance restored: ${currentBalance} + ${orderAmount} = ${newBalance}`);
+          } else {
+            console.error('Failed to restore employee balance:', balanceUpdateError);
+          }
+        }
+
+        // Delete the order (this will cascade delete order_items due to foreign key constraints)
+        const { error: deleteError } = await supabase
+          .from('orders')
+          .delete()
+          .eq('id', body.order_id);
+
+        if (deleteError) {
+          return createErrorResponse(`Failed to delete order: ${deleteError.message}`, 400);
+        }
+
+        response = {
+          order: {
+            id: order.id,
+            status: 'deleted',
+            updated_at: new Date().toISOString()
+          },
+          message: `Cancellation request accepted. Order has been deleted.${balanceRestored ? ' Employee balance has been restored.' : ''}`
+        };
+
+      } catch (error) {
+        console.error('Error handling cancellation acceptance:', error);
+        return createErrorResponse('Failed to process cancellation acceptance', 500);
+      }
+
+    } else {
+      // When cancellation is rejected, update status back to preparing
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          status: 'preparing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', body.order_id)
+        .select('id, status, updated_at')
+        .single();
+
+      if (updateError || !updatedOrder) {
+        return createErrorResponse(`Failed to update order: ${updateError?.message}`, 400);
+      }
+
+      response = {
+        order: {
+          id: updatedOrder.id,
+          status: updatedOrder.status,
+          updated_at: updatedOrder.updated_at
+        },
+        message: 'Cancellation request rejected. Order is back to preparing status.'
+      };
+    }
 
     return createSuccessResponse(response, `Cancellation request ${body.action}ed successfully`);
 

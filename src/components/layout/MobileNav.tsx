@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Store, ShoppingBag, ShoppingCart, UtensilsCrossed, Menu, X, UserCog, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Store, ShoppingBag, ShoppingCart, UtensilsCrossed, Menu, X, UserCog, Settings, BarChart3 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 export const MobileNav: React.FC = () => {
@@ -10,6 +10,7 @@ export const MobileNav: React.FC = () => {
 
   const staffLinks = [
     { name: 'Dashboard', href: '/staff/dashboard', icon: LayoutDashboard },
+    { name: 'Sales', href: '/staff/sales', icon: BarChart3 },
     { name: 'Staff Management', href: '/staff/management', icon: UserCog },
     { name: 'Employees', href: '/staff/employees', icon: Users },
     { name: 'Vendors', href: '/staff/vendors', icon: Store },

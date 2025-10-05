@@ -676,13 +676,36 @@ export const api = {
     }) => {
       const { user } = useAuthStore.getState();
       if (!user?.email) {
-        throw new Error('User not authenticated');
+        return { data: null, error: 'User not authenticated' };
       }
       
-      return apiClient.post('/cancel_order_request', {
-        ...data,
-        user_email: user.email
-      });
+      try {
+        const response = await apiClient.post('/cancel_order_request', {
+          ...data,
+          user_email: user.email
+        });
+        
+        return { data: response.data, error: null };
+      } catch (error: any) {
+        console.error('Cancel order request error:', error);
+        
+        // Extract error message from different possible locations
+        let errorMessage = 'Failed to send cancellation request';
+        
+        if (error.response?.data) {
+          errorMessage = error.response.data.error || 
+                        error.response.data.message || 
+                        error.response.data.details || 
+                        `Server error: ${error.response.status}`;
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        return { 
+          data: null, 
+          error: errorMessage
+        };
+      }
     },
   },
 
@@ -791,31 +814,33 @@ export const api = {
     getVendors: async (userEmail: string) => {
       if (!userEmail) return { data: null, error: 'Not authenticated' };
 
-      // Try to get user's org_id from organization_staff first
-      let { data: userRecord } = await supabase
-        .from('organization_staff')
+      // Try to get user's org_id from employees table first (most common for employee access)
+      let { data: userRecord, error: userError } = await supabase
+        .from('employees')
         .select('org_id')
         .eq('email', userEmail)
-        .single();
-
-      // If not found in organization_staff, try employees table
-      if (!userRecord) {
-        const { data: employeeRecord } = await supabase
-          .from('employees')
-          .select('org_id')
-          .eq('email', userEmail)
-          .single();
-        userRecord = employeeRecord;
-      }
+        .maybeSingle();
 
       // If not found in employees, try vendors table
-      if (!userRecord) {
-        const { data: vendorRecord } = await supabase
+      if (!userRecord && !userError) {
+        const { data: vendorRecord, error: vendorError } = await supabase
           .from('vendors')
           .select('org_id')
           .eq('email', userEmail)
-          .single();
+          .maybeSingle();
         userRecord = vendorRecord;
+        userError = vendorError;
+      }
+
+      // If not found in employees or vendors, try organization_staff (for staff access)
+      if (!userRecord && !userError) {
+        const { data: staffRecord, error: staffError } = await supabase
+          .from('organization_staff')
+          .select('org_id')
+          .eq('email', userEmail)
+          .maybeSingle();
+        userRecord = staffRecord;
+        userError = staffError;
       }
 
       if (!userRecord) return { data: null, error: 'User not found in any role table' };
@@ -916,7 +941,7 @@ export const api = {
     getVendorsForStaff: async (userEmail: string) => {
       if (!userEmail) return { data: null, error: 'Not authenticated' };
 
-      // Try to get user's org_id from organization_staff first
+      // Try to get user's org_id from organization_staff first (for staff access)
       let { data: userRecord, error: userError } = await supabase
         .from('organization_staff')
         .select('org_id')
@@ -1000,23 +1025,12 @@ export const api = {
     getOrganization: async (userEmail: string) => {
       if (!userEmail) return { data: null, error: 'Not authenticated' };
 
-      // Try to get user's org_id from organization_staff first
+      // Try to get user's org_id from employees table first (most common for employee access)
       let { data: userRecord, error: userError } = await supabase
-        .from('organization_staff')
+        .from('employees')
         .select('org_id')
         .eq('email', userEmail)
         .maybeSingle();
-
-      // If not found in organization_staff, try employees table
-      if (!userRecord && !userError) {
-        const { data: employeeRecord, error: employeeError } = await supabase
-          .from('employees')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = employeeRecord;
-        userError = employeeError;
-      }
 
       // If not found in employees, try vendors table
       if (!userRecord && !userError) {
@@ -1029,6 +1043,17 @@ export const api = {
         userError = vendorError;
       }
 
+      // If not found in employees or vendors, try organization_staff (for staff access)
+      if (!userRecord && !userError) {
+        const { data: staffRecord, error: staffError } = await supabase
+          .from('organization_staff')
+          .select('org_id')
+          .eq('email', userEmail)
+          .maybeSingle();
+        userRecord = staffRecord;
+        userError = staffError;
+      }
+
       if (!userRecord) return { data: null, error: 'User not found' };
 
       const { data, error } = await supabase
@@ -1038,6 +1063,49 @@ export const api = {
         .single();
 
       return { data, error };
+    },
+
+    getSalesData: async (userEmail: string, dateFrom: string, dateTo: string, vendorId?: string) => {
+      if (!userEmail) return { data: null, error: 'Not authenticated' };
+
+      try {
+        const requestBody = {
+          date_from: dateFrom,
+          date_to: dateTo,
+          vendor_id: vendorId || 'all',
+          user_email: userEmail
+        };
+        
+        console.log('Sending sales data request:', requestBody);
+        
+        const { data, error } = await supabase.functions.invoke('get_sales_data', {
+          body: requestBody
+        });
+
+        if (error) {
+          console.error('Sales data API error:', error);
+          // Try to get more detailed error information
+          const errorMessage = error.message || error.toString() || 'Failed to fetch sales data';
+          return { data: null, error: errorMessage };
+        }
+
+        if (!data) {
+          console.error('No data received from sales API');
+          return { data: null, error: 'No data received from server' };
+        }
+
+        // Check if the response indicates an actual error (not just a success message)
+        if (!data.success) {
+          console.error('Sales data response error:', data);
+          return { data: null, error: data.error || 'Request failed' };
+        }
+
+        return { data: data.data, error: null };
+
+      } catch (error: any) {
+        console.error('Error fetching sales data:', error);
+        return { data: null, error: error.message || 'Failed to fetch sales data' };
+      }
     },
   },
 };
