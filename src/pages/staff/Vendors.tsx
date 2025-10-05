@@ -3,7 +3,7 @@ import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Store } from 'lucide-react';
+import { Plus, Store, Edit2, Trash2 } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import { Vendor } from '../../types';
 import { api } from '../../services/api';
@@ -15,6 +15,9 @@ export const StaffVendors: React.FC = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -37,6 +40,32 @@ export const StaffVendors: React.FC = () => {
     }
   };
 
+  const handleEdit = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = (vendor: Vendor) => {
+    setSelectedVendor(vendor);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedVendor) return;
+    
+    try {
+      const { error } = await api.staff.deleteVendor({ vendor_id: selectedVendor.id });
+      if (error) throw error;
+      
+      toast.success('Vendor deleted successfully');
+      setShowDeleteModal(false);
+      setSelectedVendor(null);
+      loadVendors();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete vendor');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -47,12 +76,15 @@ export const StaffVendors: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Vendors</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Vendors</h1>
           <p className="text-gray-600 mt-1">Manage your organization's vendors</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
+        <Button 
+          onClick={() => setShowAddModal(true)}
+          className="w-full sm:w-auto bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+        >
           <Plus className="w-5 h-5 mr-2" />
           Add Vendor
         </Button>
@@ -65,6 +97,24 @@ export const StaffVendors: React.FC = () => {
               <div className="flex items-start justify-between mb-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <Store className="w-6 h-6 text-orange-600" />
+                </div>
+                <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(vendor)}
+                    className="text-blue-600 border-blue-200 hover:bg-blue-50 p-2"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(vendor)}
+                    className="text-red-600 border-red-200 hover:bg-red-50 p-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{vendor.name}</h3>
@@ -93,6 +143,30 @@ export const StaffVendors: React.FC = () => {
           setShowAddModal(false);
           loadVendors();
         }}
+      />
+
+      <EditVendorModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedVendor(null);
+        }}
+        vendor={selectedVendor}
+        onSuccess={() => {
+          setShowEditModal(false);
+          setSelectedVendor(null);
+          loadVendors();
+        }}
+      />
+
+      <DeleteVendorModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedVendor(null);
+        }}
+        vendor={selectedVendor}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );
@@ -238,6 +312,164 @@ const AddVendorModal: React.FC<{
             </Button>
           </div>
         </form>
+      </div>
+    </Modal>
+  );
+};
+
+const EditVendorModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  vendor: Vendor | null;
+  onSuccess: () => void;
+}> = ({ isOpen, onClose, vendor, onSuccess }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (vendor) {
+      setName(vendor.name || '');
+      setEmail(vendor.email || '');
+      setPhoneNumber(vendor.phone_number || '');
+    }
+  }, [vendor]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!vendor) return;
+
+    setLoading(true);
+
+    try {
+      await api.staff.updateVendor({
+        vendor_id: vendor.id,
+        name,
+        email,
+        phone_number: phoneNumber,
+      });
+      toast.success('Vendor updated successfully');
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update vendor');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Vendor">
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Store className="w-8 h-8 text-orange-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Edit Vendor</h3>
+          <p className="text-sm text-gray-600">Update vendor information</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Vendor Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Pizza Palace"
+              required
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Email Address <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="vendor@example.com"
+              required
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Phone Number
+            </label>
+            <Input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="+91 9876543210"
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="flex space-x-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex-1 h-12 text-base font-medium"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              loading={loading} 
+              className="flex-1 h-12 text-base font-medium bg-orange-600 hover:bg-orange-700"
+            >
+              {loading ? 'Updating...' : 'Update Vendor'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  );
+};
+
+const DeleteVendorModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  vendor: Vendor | null;
+  onConfirm: () => void;
+}> = ({ isOpen, onClose, vendor, onConfirm }) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Delete Vendor">
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Vendor</h3>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <strong>{vendor?.name}</strong>? This action cannot be undone.
+          </p>
+        </div>
+
+        <div className="flex space-x-3 pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            className="flex-1 h-12 text-base font-medium"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="button" 
+            onClick={onConfirm}
+            className="flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700 text-white"
+          >
+            Delete Vendor
+          </Button>
+        </div>
       </div>
     </Modal>
   );

@@ -225,6 +225,168 @@ export const api = {
       new_balance: number;
     }) =>
       apiClient.put('/update_employee_balance', data),
+
+    updateEmployee: async (data: {
+      employee_id: string;
+      name?: string;
+      email?: string;
+      phone_number?: string;
+      special_number?: string;
+    }) => {
+      try {
+        // Get current user for authentication
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Call the edge function with user email for authentication
+        const { data: result, error } = await supabase.functions.invoke('update_employee', {
+          body: {
+            employee_id: data.employee_id,
+            name: data.name,
+            email: data.email,
+            phone_number: data.phone_number,
+            special_number: data.special_number,
+            user_email: user.email
+          }
+        });
+
+        if (error) {
+          console.error('Employee update error:', error);
+          return { data: null, error: { message: error.message || 'Failed to update employee' } };
+        }
+
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to update employee' } };
+        }
+
+        return {
+          data: result,
+          error: null
+        };
+      } catch (error: any) {
+        console.error('Update employee error:', error);
+        return { data: null, error: { message: error.message || 'Failed to update employee' } };
+      }
+    },
+
+    deleteEmployee: async (data: { employee_id: string }) => {
+      try {
+        // Get current user for authentication
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Call the edge function with user email for authentication
+        const { data: result, error } = await supabase.functions.invoke('delete_employee', {
+          body: {
+            employee_id: data.employee_id,
+            user_email: user.email
+          }
+        });
+
+        if (error) {
+          console.error('Employee deletion error:', error);
+          return { data: null, error: { message: error.message || 'Failed to delete employee' } };
+        }
+
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to delete employee' } };
+        }
+
+        return {
+          data: result,
+          error: null
+        };
+      } catch (error: any) {
+        console.error('Delete employee error:', error);
+        return { data: null, error: { message: error.message || 'Failed to delete employee' } };
+      }
+    },
+
+    updateVendor: async (data: {
+      vendor_id: string;
+      name?: string;
+      email?: string;
+      phone_number?: string;
+      latitude?: number;
+      longitude?: number;
+    }) => {
+      try {
+        // Get current user for authentication
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Call the edge function with user email for authentication
+        const { data: result, error } = await supabase.functions.invoke('update_vendor', {
+          body: {
+            vendor_id: data.vendor_id,
+            name: data.name,
+            email: data.email,
+            phone_number: data.phone_number,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            user_email: user.email
+          }
+        });
+
+        if (error) {
+          console.error('Vendor update error:', error);
+          return { data: null, error: { message: error.message || 'Failed to update vendor' } };
+        }
+
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to update vendor' } };
+        }
+
+        return {
+          data: result,
+          error: null
+        };
+      } catch (error: any) {
+        console.error('Update vendor error:', error);
+        return { data: null, error: { message: error.message || 'Failed to update vendor' } };
+      }
+    },
+
+    deleteVendor: async (data: { vendor_id: string }) => {
+      try {
+        // Get current user for authentication
+        const { user } = useAuthStore.getState();
+        if (!user?.email) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Call the edge function with user email for authentication
+        const { data: result, error } = await supabase.functions.invoke('delete_vendor', {
+          body: {
+            vendor_id: data.vendor_id,
+            user_email: user.email
+          }
+        });
+
+        if (error) {
+          console.error('Vendor deletion error:', error);
+          return { data: null, error: { message: error.message || 'Failed to delete vendor' } };
+        }
+
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to delete vendor' } };
+        }
+
+        return {
+          data: result,
+          error: null
+        };
+      } catch (error: any) {
+        console.error('Delete vendor error:', error);
+        return { data: null, error: { message: error.message || 'Failed to delete vendor' } };
+      }
+    },
   },
 
   employee: {

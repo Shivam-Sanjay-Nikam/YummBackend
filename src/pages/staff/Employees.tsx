@@ -3,7 +3,7 @@ import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, IndianRupee, Users } from 'lucide-react';
+import { Plus, IndianRupee, Users, Edit2, Trash2, MoreVertical } from 'lucide-react';
 import { Employee } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -15,6 +15,8 @@ export const StaffEmployees: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBalanceModal, setShowBalanceModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
 
   useEffect(() => {
@@ -43,6 +45,32 @@ export const StaffEmployees: React.FC = () => {
     setShowBalanceModal(true);
   };
 
+  const handleEdit = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedEmployee) return;
+    
+    try {
+      const { error } = await api.staff.deleteEmployee({ employee_id: selectedEmployee.id });
+      if (error) throw error;
+      
+      toast.success('Employee deleted successfully');
+      setShowDeleteModal(false);
+      setSelectedEmployee(null);
+      loadEmployees();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to delete employee');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -53,12 +81,15 @@ export const StaffEmployees: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Employees</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Employees</h1>
           <p className="text-gray-600 mt-1">Manage your organization's employees</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
+        <Button 
+          onClick={() => setShowAddModal(true)}
+          className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium px-6 py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+        >
           <Plus className="w-5 h-5 mr-2" />
           Add Employee
         </Button>
@@ -99,14 +130,35 @@ export const StaffEmployees: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleUpdateBalance(employee)}
-                      >
-                        <IndianRupee className="w-4 h-4 mr-1" />
-                        Update Balance
-                      </Button>
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleUpdateBalance(employee)}
+                          className="text-green-600 border-green-200 hover:bg-green-50"
+                        >
+                          <IndianRupee className="w-4 h-4 mr-1" />
+                          Balance
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEdit(employee)}
+                          className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                        >
+                          <Edit2 className="w-4 h-4 mr-1" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(employee)}
+                          className="text-red-600 border-red-200 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -142,6 +194,30 @@ export const StaffEmployees: React.FC = () => {
           setSelectedEmployee(null);
           loadEmployees();
         }}
+      />
+
+      <EditEmployeeModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
+        onSuccess={() => {
+          setShowEditModal(false);
+          setSelectedEmployee(null);
+          loadEmployees();
+        }}
+      />
+
+      <DeleteEmployeeModal
+        isOpen={showDeleteModal}
+        onClose={() => {
+          setShowDeleteModal(false);
+          setSelectedEmployee(null);
+        }}
+        employee={selectedEmployee}
+        onConfirm={handleDeleteConfirm}
       />
     </div>
   );
@@ -363,6 +439,180 @@ const UpdateBalanceModal: React.FC<{
           </Button>
         </div>
       </form>
+    </Modal>
+  );
+};
+
+const EditEmployeeModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  employee: Employee | null;
+  onSuccess: () => void;
+}> = ({ isOpen, onClose, employee, onSuccess }) => {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [specialNumber, setSpecialNumber] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (employee) {
+      setName(employee.name || '');
+      setEmail(employee.email || '');
+      setPhoneNumber(employee.phone_number || '');
+      setSpecialNumber(employee.special_number || '');
+    }
+  }, [employee]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!employee) return;
+
+    setLoading(true);
+
+    try {
+      await api.staff.updateEmployee({
+        employee_id: employee.id,
+        name,
+        email,
+        phone_number: phoneNumber,
+        special_number: specialNumber,
+      });
+      toast.success('Employee updated successfully');
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update employee');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Employee">
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Users className="w-8 h-8 text-blue-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Edit Employee</h3>
+          <p className="text-sm text-gray-600">Update employee information</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Employee Name <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="John Doe"
+              required
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Email Address <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="employee@example.com"
+              required
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Phone Number
+            </label>
+            <Input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              placeholder="+91 9876543210"
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium text-gray-700">
+              Special Number
+            </label>
+            <Input
+              type="text"
+              value={specialNumber}
+              onChange={(e) => setSpecialNumber(e.target.value)}
+              placeholder="Special identifier"
+              className="h-12 text-base"
+            />
+          </div>
+
+          <div className="flex space-x-3 pt-4">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose} 
+              className="flex-1 h-12 text-base font-medium"
+            >
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              loading={loading} 
+              className="flex-1 h-12 text-base font-medium bg-blue-600 hover:bg-blue-700"
+            >
+              {loading ? 'Updating...' : 'Update Employee'}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </Modal>
+  );
+};
+
+const DeleteEmployeeModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  employee: Employee | null;
+  onConfirm: () => void;
+}> = ({ isOpen, onClose, employee, onConfirm }) => {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Delete Employee">
+      <div className="space-y-6">
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Trash2 className="w-8 h-8 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Employee</h3>
+          <p className="text-sm text-gray-600">
+            Are you sure you want to delete <strong>{employee?.name}</strong>? This action cannot be undone.
+          </p>
+        </div>
+
+        <div className="flex space-x-3 pt-4">
+          <Button 
+            type="button" 
+            variant="outline" 
+            onClick={onClose} 
+            className="flex-1 h-12 text-base font-medium"
+          >
+            Cancel
+          </Button>
+          <Button 
+            type="button" 
+            onClick={onConfirm}
+            className="flex-1 h-12 text-base font-medium bg-red-600 hover:bg-red-700 text-white"
+          >
+            Delete Employee
+          </Button>
+        </div>
+      </div>
     </Modal>
   );
 };
