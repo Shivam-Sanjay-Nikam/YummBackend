@@ -23,6 +23,7 @@ export const Sidebar: React.FC = () => {
 
   const vendorLinks = [
     { name: 'Dashboard', href: '/vendor/dashboard', icon: LayoutDashboard },
+    { name: 'Orders', href: '/vendor/orders', icon: ShoppingBag },
     { name: 'Menu', href: '/vendor/menu', icon: UtensilsCrossed },
   ];
 

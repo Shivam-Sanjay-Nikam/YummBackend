@@ -1,4 +1,4 @@
-// Cancel order request - only accessible by employee
+// Update order status - only accessible by vendor
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSuccessResponse, createErrorResponse, handleCors, validateUuid } from '../shared/utils.ts';
 import { authenticateUserByEmail } from '../shared/auth.ts';
@@ -8,13 +8,13 @@ const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-interface CancelOrderRequest {
+interface UpdateOrderStatusRequest {
   order_id: string;
-  reason?: string;
+  status: 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled';
   user_email?: string;
 }
 
-interface CancelOrderResponse {
+interface UpdateOrderStatusResponse {
   order: {
     id: string;
     status: string;
@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body: CancelOrderRequest = await req.json();
+    const body: UpdateOrderStatusRequest = await req.json();
 
     // Authenticate user using email
     if (!body.user_email) {
@@ -45,14 +45,14 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse('Authentication failed', 401);
     }
 
-    // Check if user is employee
-    if (authResult.user.role !== 'employee') {
-      return createErrorResponse('Only employees can request order cancellation', 403);
+    // Check if user is vendor
+    if (authResult.user.role !== 'vendor') {
+      return createErrorResponse('Only vendors can update order status', 403);
     }
 
     // Validate required fields
-    if (!body.order_id) {
-      return createErrorResponse('Missing required field: order_id', 400);
+    if (!body.order_id || !body.status) {
+      return createErrorResponse('Missing required fields: order_id, status', 400);
     }
 
     // Validate order_id format
@@ -60,10 +60,16 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse('Invalid order ID format', 400);
     }
 
+    // Validate status
+    const validStatuses = ['placed', 'preparing', 'prepared', 'given', 'cancelled'];
+    if (!validStatuses.includes(body.status)) {
+      return createErrorResponse(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
+    }
+
     // Get order details
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, employee_id, org_id, status, created_at')
+      .select('id, vendor_id, org_id, status, created_at')
       .eq('id', body.order_id)
       .single();
 
@@ -71,8 +77,8 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse('Order not found', 404);
     }
 
-    // Check if order belongs to the employee
-    if (order.employee_id !== authResult.user.user_id) {
+    // Check if order belongs to the vendor
+    if (order.vendor_id !== authResult.user.user_id) {
       return createErrorResponse('Order does not belong to you', 403);
     }
 
@@ -81,27 +87,13 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse('Order does not belong to your organization', 403);
     }
 
-    // Check if order can be cancelled
-    const cancellableStatuses = ['placed', 'preparing'];
-    if (!cancellableStatuses.includes(order.status)) {
-      return createErrorResponse(`Order cannot be cancelled. Current status: ${order.status}`, 400);
-    }
+    // Allow any status transition - vendor can set any status they want
 
-    // Check if order is too old (e.g., more than 1 hour)
-    const orderTime = new Date(order.created_at);
-    const currentTime = new Date();
-    const timeDiff = currentTime.getTime() - orderTime.getTime();
-    const hoursDiff = timeDiff / (1000 * 3600);
-
-    if (hoursDiff > 1) {
-      return createErrorResponse('Order is too old to be cancelled (more than 1 hour)', 400);
-    }
-
-    // Update order status to cancel_requested
+    // Update order status
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update({ 
-        status: 'cancel_requested',
+        status: body.status,
         updated_at: new Date().toISOString()
       })
       .eq('id', body.order_id)
@@ -109,22 +101,22 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (updateError || !updatedOrder) {
-      return createErrorResponse(`Failed to request cancellation: ${updateError?.message}`, 400);
+      return createErrorResponse(`Failed to update order status: ${updateError?.message}`, 400);
     }
 
-    const response: CancelOrderResponse = {
+    const response: UpdateOrderStatusResponse = {
       order: {
         id: updatedOrder.id,
         status: updatedOrder.status,
         updated_at: updatedOrder.updated_at
       },
-      message: 'Cancellation request sent to vendor. Waiting for vendor response.'
+      message: `Order status updated to ${body.status}`
     };
 
-    return createSuccessResponse(response, 'Cancellation request submitted successfully');
+    return createSuccessResponse(response, 'Order status updated successfully');
 
   } catch (error) {
-    console.error('Cancel order request error:', error);
+    console.error('Update order status error:', error);
     return createErrorResponse('Internal server error', 500);
   }
 });

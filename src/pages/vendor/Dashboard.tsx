@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Clock, CheckCircle, XCircle } from 'lucide-react';
-import { Order, OrderStatus } from '../../types';
+import { Clock, CheckCircle, Package, List, UtensilsCrossed } from 'lucide-react';
+import { Order } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
@@ -34,47 +34,6 @@ export const VendorDashboard: React.FC = () => {
     }
   };
 
-  const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
-    try {
-      // For now, we'll just reload orders since we don't have a specific update status endpoint
-      // In a real app, you'd call an API to update the order status
-      toast.success('Order status updated');
-      loadOrders();
-    } catch (error: any) {
-      toast.error('Failed to update order status');
-    }
-  };
-
-  const handleCancelRequest = async (orderId: string, action: 'accept' | 'reject') => {
-    try {
-      await api.vendor.handleCancelRequest({ order_id: orderId, action });
-      toast.success(action === 'accept' ? 'Order cancelled' : 'Cancellation denied');
-      loadOrders();
-    } catch (error: any) {
-      toast.error('Failed to handle cancellation request');
-    }
-  };
-
-  const getStatusBadge = (status: OrderStatus) => {
-    const statusConfig = {
-      placed: { variant: 'primary' as const, icon: Clock, text: 'New Order' },
-      preparing: { variant: 'warning' as const, icon: Clock, text: 'Preparing' },
-      prepared: { variant: 'warning' as const, icon: Clock, text: 'Prepared' },
-      given: { variant: 'success' as const, icon: CheckCircle, text: 'Completed' },
-      cancelled: { variant: 'danger' as const, icon: XCircle, text: 'Cancelled' },
-      cancel_requested: { variant: 'warning' as const, icon: Clock, text: 'Cancel Requested' },
-    };
-
-    const config = statusConfig[status];
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant}>
-        <Icon className="w-3 h-3 mr-1 inline" />
-        {config.text}
-      </Badge>
-    );
-  };
 
   if (loading) {
     return (
@@ -89,115 +48,95 @@ export const VendorDashboard: React.FC = () => {
   const completedOrders = orders.filter((o) => o.status === 'given' || o.status === 'cancelled');
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
-        <p className="text-gray-600 mt-1">Manage incoming orders</p>
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="px-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your orders and business</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Statistics Cards - Mobile Friendly */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         <Card>
-          <CardBody>
-            <p className="text-sm font-medium text-gray-600">Pending</p>
-            <p className="text-3xl font-bold text-blue-600 mt-2">{pendingOrders.length}</p>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <p className="text-sm font-medium text-gray-600">Preparing</p>
-            <p className="text-3xl font-bold text-orange-600 mt-2">{activeOrders.length}</p>
-          </CardBody>
-        </Card>
-        <Card>
-          <CardBody>
-            <p className="text-sm font-medium text-gray-600">Completed</p>
-            <p className="text-3xl font-bold text-green-600 mt-2">{completedOrders.length}</p>
-          </CardBody>
-        </Card>
-      </div>
-
-      <div className="space-y-4">
-        {orders.map((order) => (
-          <Card key={order.id}>
-            <CardBody>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      Order #{order.id.slice(0, 8)}
-                    </h3>
-                    {getStatusBadge(order.status)}
-                  </div>
-                  <p className="text-sm text-gray-600">
-                    Customer: {order.employee?.name || 'Unknown'}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {new Date(order.created_at).toLocaleString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-green-600">
-                    ₹{order.total_amount.toFixed(2)}
-                  </p>
-                </div>
+          <CardBody className="p-4 sm:p-6">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 bg-blue-100 rounded-lg">
+                <Package className="w-6 h-6 sm:w-8 sm:h-8 text-blue-600" />
               </div>
-
-              <div className="border-t border-gray-200 pt-4 mb-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Order Items</h4>
-                <div className="space-y-2">
-                  {order.order_items.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        {item.menu_items?.name || 'Unknown Item'} x{item.quantity}
-                      </span>
-                      <span className="font-medium">₹{item.total_cost.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Pending</p>
+                <p className="text-2xl sm:text-3xl font-bold text-blue-600 mt-1">{pendingOrders.length}</p>
               </div>
-
-              {order.status === 'placed' && (
-                <div className="flex space-x-3">
-                  <Button
-                    size="sm"
-                    onClick={() => handleUpdateStatus(order.id, 'preparing')}
-                    className="flex-1"
-                  >
-                    Start Preparing
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => handleCancelRequest(order.id, 'accept')}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              )}
-
-              {order.status === 'preparing' && (
-                <Button
-                  size="sm"
-                  variant="success"
-                  onClick={() => handleUpdateStatus(order.id, 'given')}
-                  className="w-full"
-                >
-                  Mark as Completed
-                </Button>
-              )}
-            </CardBody>
-          </Card>
-        ))}
-      </div>
-
-      {orders.length === 0 && (
-        <Card>
-          <CardBody className="text-center py-12">
-            <Clock className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No orders yet</p>
+            </div>
           </CardBody>
         </Card>
-      )}
+        
+        <Card>
+          <CardBody className="p-4 sm:p-6">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 bg-orange-100 rounded-lg">
+                <Clock className="w-6 h-6 sm:w-8 sm:h-8 text-orange-600" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Preparing</p>
+                <p className="text-2xl sm:text-3xl font-bold text-orange-600 mt-1">{activeOrders.length}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+        
+        <Card className="sm:col-span-2 lg:col-span-1">
+          <CardBody className="p-4 sm:p-6">
+            <div className="flex items-center">
+              <div className="p-2 sm:p-3 bg-green-100 rounded-lg">
+                <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
+              </div>
+              <div className="ml-3 sm:ml-4">
+                <p className="text-xs sm:text-sm font-medium text-gray-600">Completed</p>
+                <p className="text-2xl sm:text-3xl font-bold text-green-600 mt-1">{completedOrders.length}</p>
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card>
+          <CardBody className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Manage Menu</h3>
+                <p className="text-sm text-gray-600 mt-1">Add or edit your menu items</p>
+              </div>
+              <a 
+                href="/vendor/menu"
+                className="p-3 bg-blue-100 rounded-lg hover:bg-blue-200 transition-colors"
+              >
+                <UtensilsCrossed className="w-6 h-6 text-blue-600" />
+              </a>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardBody className="p-4 sm:p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">View All Orders</h3>
+                <p className="text-sm text-gray-600 mt-1">See complete order history</p>
+              </div>
+              <a 
+                href="/vendor/orders"
+                className="p-3 bg-green-100 rounded-lg hover:bg-green-200 transition-colors"
+              >
+                <List className="w-6 h-6 text-green-600" />
+              </a>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
     </div>
   );
 };

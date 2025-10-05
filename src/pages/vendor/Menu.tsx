@@ -69,22 +69,22 @@ export const VendorMenu: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Menu Management</h1>
-          <p className="text-gray-600 mt-1">Manage your menu items</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Menu Management</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your menu items</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
-          <Plus className="w-5 h-5 mr-2" />
+        <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
           Add Item
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {menuItems.map((item) => (
           <Card key={item.id} hover>
-            <CardBody>
+            <CardBody className="p-4 sm:p-6">
               <div className="flex items-start justify-between mb-3">
                 <Badge variant={item.status === 'active' ? 'success' : 'gray'}>
                   {item.status === 'active' ? 'Active' : 'Inactive'}
@@ -106,11 +106,11 @@ export const VendorMenu: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{item.name}</h3>
+              <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">{item.name}</h3>
               {item.description && (
-                <p className="text-sm text-gray-600 mb-3">{item.description}</p>
+                <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
               )}
-              <p className="text-xl font-bold text-green-600">₹{item.price.toFixed(2)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">₹{item.price.toFixed(2)}</p>
             </CardBody>
           </Card>
         ))}
@@ -118,12 +118,12 @@ export const VendorMenu: React.FC = () => {
 
       {menuItems.length === 0 && (
         <Card>
-          <CardBody className="text-center py-12">
-            <UtensilsCrossed className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <CardBody className="text-center py-8 sm:py-12">
+            <UtensilsCrossed className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No menu items yet</h3>
             <p className="text-gray-500 mb-6">Add your first menu item to get started</p>
-            <Button onClick={() => setShowAddModal(true)}>
-              <Plus className="w-5 h-5 mr-2" />
+            <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
               Add Item
             </Button>
           </CardBody>
@@ -187,16 +187,16 @@ const MenuItemModal: React.FC<{
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Add Menu Item" size="lg">
-      <div className="space-y-6">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <UtensilsCrossed className="w-8 h-8 text-green-600" />
+      <div className="space-y-4 sm:space-y-6">
+        <div className="text-center mb-4 sm:mb-6">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+            <UtensilsCrossed className="w-6 h-6 sm:w-8 sm:h-8 text-green-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Add New Menu Item</h3>
-          <p className="text-sm text-gray-600">Create a new item for your menu</p>
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Add New Menu Item</h3>
+          <p className="text-xs sm:text-sm text-gray-600">Create a new item for your menu</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
           <div className="space-y-1">
             <label className="text-sm font-medium text-gray-700">
               Item Name <span className="text-red-500">*</span>
@@ -207,7 +207,7 @@ const MenuItemModal: React.FC<{
               onChange={(e) => setName(e.target.value)}
               placeholder="Deluxe Burger"
               required
-              className="h-12 text-base"
+              className="h-10 sm:h-12 text-sm sm:text-base"
             />
           </div>
 
@@ -216,7 +216,7 @@ const MenuItemModal: React.FC<{
               Description
             </label>
             <textarea
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-base"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
@@ -237,7 +237,7 @@ const MenuItemModal: React.FC<{
                 step="0.01"
                 placeholder="9.99"
                 required
-                className="h-12 text-base pl-8"
+                className="h-10 sm:h-12 text-sm sm:text-base pl-8"
               />
               <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
                 <span className="text-lg font-medium">₹</span>
@@ -246,19 +246,19 @@ const MenuItemModal: React.FC<{
             <p className="text-xs text-gray-500 mt-1">Enter the price in rupees</p>
           </div>
 
-          <div className="flex space-x-3 pt-4">
+          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-3 pt-4">
             <Button 
               type="button" 
               variant="outline" 
               onClick={onClose} 
-              className="flex-1 h-12 text-base font-medium"
+              className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-medium w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button 
               type="submit" 
               loading={loading} 
-              className="flex-1 h-12 text-base font-medium bg-green-600 hover:bg-green-700"
+              className="flex-1 h-10 sm:h-12 text-sm sm:text-base font-medium bg-green-600 hover:bg-green-700 w-full sm:w-auto"
             >
               {loading ? 'Adding...' : 'Add Item'}
             </Button>
@@ -317,7 +317,7 @@ const EditMenuItemModal: React.FC<{
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Edit Menu Item">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
         <Input
           type="text"
           label="Item Name"
@@ -330,7 +330,7 @@ const EditMenuItemModal: React.FC<{
             Description (Optional)
           </label>
           <textarea
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+            className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}

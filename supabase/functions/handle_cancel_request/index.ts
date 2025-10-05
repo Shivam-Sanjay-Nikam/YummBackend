@@ -1,7 +1,7 @@
 // Handle cancel request - only accessible by vendor
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSuccessResponse, createErrorResponse, handleCors, validateUuid } from '../shared/utils.ts';
-import { authenticateUser } from '../shared/auth.ts';
+import { authenticateUserByEmail } from '../shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -12,6 +12,7 @@ interface HandleCancelRequest {
   order_id: string;
   action: 'accept' | 'reject';
   reason?: string;
+  user_email?: string;
 }
 
 interface HandleCancelResponse {
@@ -32,20 +33,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    const authResult = await authenticateUser(authHeader || '');
+    const body: HandleCancelRequest = await req.json();
+
+    // Authenticate user using email
+    if (!body.user_email) {
+      return createErrorResponse('User email required for authentication', 401);
+    }
+
+    const authResult = await authenticateUserByEmail(body.user_email);
     
     if (!authResult.success || !authResult.user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse('Authentication failed', 401);
     }
 
     // Check if user is vendor
     if (authResult.user.role !== 'vendor') {
       return createErrorResponse('Only vendors can handle cancel requests', 403);
     }
-
-    const body: HandleCancelRequest = await req.json();
 
     // Validate required fields
     if (!body.order_id || !body.action) {

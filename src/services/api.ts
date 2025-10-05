@@ -655,17 +655,35 @@ export const api = {
   },
 
   employee: {
-    placeOrder: (data: { 
+    placeOrder: async (data: { 
       vendor_id: string; 
       items: Array<{ menu_item_id: string; quantity: number }> 
-    }) =>
-      apiClient.post('/place_order', data),
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+      
+      return apiClient.post('/place_order', {
+        ...data,
+        user_email: user.email
+      });
+    },
 
-    cancelOrderRequest: (data: { 
+    cancelOrderRequest: async (data: { 
       order_id: string; 
       reason?: string;
-    }) =>
-      apiClient.post('/cancel_order_request', data),
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+      
+      return apiClient.post('/cancel_order_request', {
+        ...data,
+        user_email: user.email
+      });
+    },
   },
 
   vendor: {
@@ -686,12 +704,50 @@ export const api = {
       });
     },
 
-    handleCancelRequest: (data: { 
+    handleCancelRequest: async (data: { 
       order_id: string; 
       action: 'accept' | 'reject'; 
       reason?: string;
-    }) =>
-      apiClient.post('/handle_cancel_request', data),
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+      
+      return apiClient.post('/handle_cancel_request', {
+        ...data,
+        user_email: user.email
+      });
+    },
+
+    updateOrderStatus: async (data: { 
+      order_id: string; 
+      status: 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled';
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+      
+      return apiClient.post('/update_order_status', {
+        ...data,
+        user_email: user.email
+      });
+    },
+
+    deleteOrder: async (data: { 
+      order_id: string;
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+      
+      return apiClient.post('/delete_order', {
+        ...data,
+        user_email: user.email
+      });
+    },
 
     updateMenuItem: async (data: {
       menu_item_id: string;

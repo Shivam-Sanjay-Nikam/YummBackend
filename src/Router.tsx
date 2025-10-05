@@ -15,6 +15,7 @@ import { EmployeeCart } from './pages/employee/Cart';
 import { EmployeeOrders } from './pages/employee/Orders';
 import { VendorDashboard } from './pages/vendor/Dashboard';
 import { VendorMenu } from './pages/vendor/Menu';
+import { VendorOrders } from './pages/vendor/Orders';
 
 export const Router: React.FC = () => {
   const { user, loading, initialize, refreshUser } = useAuthStore();
@@ -158,6 +159,15 @@ export const Router: React.FC = () => {
           <ProtectedRoute allowedRoles={['vendor']}>
             <Layout>
               <VendorMenu />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
+      if (path === '/vendor/orders') {
+        return (
+          <ProtectedRoute allowedRoles={['vendor']}>
+            <Layout>
+              <VendorOrders />
             </Layout>
           </ProtectedRoute>
         );
