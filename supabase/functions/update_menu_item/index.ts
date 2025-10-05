@@ -12,6 +12,7 @@ interface UpdateMenuItemRequest {
   user_email: string;
   menu_item_id: string;
   name?: string;
+  description?: string;
   price?: number;
   image_url?: string;
   status?: 'active' | 'inactive';
@@ -23,6 +24,7 @@ interface UpdateMenuItemResponse {
     org_id: string;
     vendor_id: string;
     name: string;
+    description?: string;
     price: number;
     image_url?: string;
     status: 'active' | 'inactive';
@@ -92,6 +94,7 @@ Deno.serve(async (req: Request) => {
     // Prepare update data (only include fields that are provided)
     const updateData: any = {};
     if (body.name !== undefined) updateData.name = body.name;
+    if (body.description !== undefined) updateData.description = body.description;
     if (body.price !== undefined) updateData.price = body.price;
     if (body.image_url !== undefined) updateData.image_url = body.image_url;
     if (body.status !== undefined) updateData.status = body.status;
@@ -115,6 +118,7 @@ Deno.serve(async (req: Request) => {
         org_id: updatedItem.org_id,
         vendor_id: updatedItem.vendor_id,
         name: updatedItem.name,
+        description: updatedItem.description,
         price: updatedItem.price,
         image_url: updatedItem.image_url,
         status: updatedItem.status,

@@ -48,10 +48,10 @@ export const EmployeeOrders: React.FC = () => {
     const statusConfig = {
       placed: { variant: 'primary' as const, icon: Clock, text: 'Placed' },
       preparing: { variant: 'warning' as const, icon: Clock, text: 'Preparing' },
-      prepared: { variant: 'warning' as const, icon: Clock, text: 'Prepared' },
-      given: { variant: 'success' as const, icon: CheckCircle, text: 'Completed' },
+      prepared: { variant: 'warning' as const, icon: CheckCircle, text: 'Prepared' },
+      given: { variant: 'success' as const, icon: CheckCircle, text: 'Given' },
       cancelled: { variant: 'danger' as const, icon: XCircle, text: 'Cancelled' },
-      cancel_requested: { variant: 'warning' as const, icon: Clock, text: 'Cancel Requested' },
+      cancel_requested: { variant: 'warning' as const, icon: XCircle, text: 'Cancel Requested' },
     };
 
     const config = statusConfig[status];

@@ -64,6 +64,7 @@ export interface MenuItem {
   org_id: string;
   vendor_id: string;
   name: string;
+  description?: string;
   image_url?: string;
   price: number;
   status: MenuItemStatus;
@@ -193,6 +194,7 @@ export interface CreateVendorResponse {
 // Menu item types
 export interface AddMenuItemRequest {
   name: string;
+  description?: string;
   price: number;
   image_url?: string;
   status?: 'active' | 'inactive';

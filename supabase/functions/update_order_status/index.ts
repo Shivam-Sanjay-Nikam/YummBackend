@@ -10,7 +10,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface UpdateOrderStatusRequest {
   order_id: string;
-  status: 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled';
+  status: 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled' | 'cancel_requested';
   user_email?: string;
 }
 
@@ -61,7 +61,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Validate status
-    const validStatuses = ['placed', 'preparing', 'prepared', 'given', 'cancelled'];
+    const validStatuses = ['placed', 'preparing', 'prepared', 'given', 'cancelled', 'cancel_requested'];
     if (!validStatuses.includes(body.status)) {
       return createErrorResponse(`Invalid status. Must be one of: ${validStatuses.join(', ')}`, 400);
     }

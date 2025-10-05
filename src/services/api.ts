@@ -689,6 +689,7 @@ export const api = {
   vendor: {
     addMenuItem: async (data: { 
       name: string; 
+      description?: string;
       price: number; 
       image_url?: string; 
       status?: 'active' | 'inactive';
@@ -722,7 +723,7 @@ export const api = {
 
     updateOrderStatus: async (data: { 
       order_id: string; 
-      status: 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled';
+      status: 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled' | 'cancel_requested';
     }) => {
       const { user } = useAuthStore.getState();
       if (!user?.email) {
@@ -752,6 +753,7 @@ export const api = {
     updateMenuItem: async (data: {
       menu_item_id: string;
       name?: string;
+      description?: string;
       price?: number;
       image_url?: string;
       status?: 'active' | 'inactive';

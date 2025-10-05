@@ -11,6 +11,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 interface AddMenuItemRequest {
   user_email: string;
   name: string;
+  description?: string;
   price: number;
   image_url?: string;
   status?: 'active' | 'inactive';
@@ -22,6 +23,7 @@ interface AddMenuItemResponse {
     org_id: string;
     vendor_id: string;
     name: string;
+    description?: string;
     price: number;
     image_url?: string;
     status: 'active' | 'inactive';
@@ -88,6 +90,7 @@ Deno.serve(async (req: Request) => {
         org_id: authResult.user.org_id,
         vendor_id: authResult.user.user_id,
         name: body.name,
+        description: body.description,
         price: body.price,
         image_url: body.image_url,
         status: body.status || 'active'
@@ -105,6 +108,7 @@ Deno.serve(async (req: Request) => {
         org_id: menuItem.org_id,
         vendor_id: menuItem.vendor_id,
         name: menuItem.name,
+        description: menuItem.description,
         price: menuItem.price,
         image_url: menuItem.image_url,
         status: menuItem.status,

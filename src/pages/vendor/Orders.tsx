@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Clock, CheckCircle, XCircle, List, ChevronDown, Trash2 } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, List, ChevronDown, Trash2, Menu, X } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
@@ -15,6 +15,8 @@ export const VendorOrders: React.FC = () => {
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ orderId: string; orderNumber: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<'all' | 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled' | 'cancel_requested'>('all');
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -43,6 +45,8 @@ export const VendorOrders: React.FC = () => {
       await api.vendor.updateOrderStatus({ order_id: orderId, status });
       toast.success('Order status updated successfully');
       loadOrders();
+      // Automatically switch to the appropriate tab based on new status
+      setActiveTab(status);
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to update order status');
     } finally {
@@ -74,18 +78,18 @@ export const VendorOrders: React.FC = () => {
     }
   };
 
-  const canDeleteOrder = (status: OrderStatus) => {
+  const canDeleteOrder = () => {
     return true; // Allow deletion of orders with any status
   };
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
-      placed: { variant: 'primary' as const, icon: Clock, text: 'New Order' },
+      placed: { variant: 'primary' as const, icon: Clock, text: 'Placed' },
       preparing: { variant: 'warning' as const, icon: Clock, text: 'Preparing' },
-      prepared: { variant: 'warning' as const, icon: Clock, text: 'Prepared' },
-      given: { variant: 'success' as const, icon: CheckCircle, text: 'Completed' },
+      prepared: { variant: 'warning' as const, icon: CheckCircle, text: 'Prepared' },
+      given: { variant: 'success' as const, icon: CheckCircle, text: 'Given' },
       cancelled: { variant: 'danger' as const, icon: XCircle, text: 'Cancelled' },
-      cancel_requested: { variant: 'warning' as const, icon: Clock, text: 'Cancel Requested' },
+      cancel_requested: { variant: 'warning' as const, icon: XCircle, text: 'Cancel Requested' },
     };
 
     const config = statusConfig[status];
@@ -109,7 +113,7 @@ export const VendorOrders: React.FC = () => {
           value={order.status}
           onChange={(e) => handleUpdateStatus(order.id, e.target.value as OrderStatus)}
           disabled={isUpdating}
-          className={`appearance-none bg-white border border-gray-300 rounded-md px-3 py-1 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+          className={`appearance-none bg-white border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-1 pr-6 sm:pr-8 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 ${
             isUpdating ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -120,11 +124,11 @@ export const VendorOrders: React.FC = () => {
           ))}
         </select>
         {isUpdating ? (
-          <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+          <div className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-blue-500 border-t-transparent"></div>
           </div>
         ) : (
-          <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <ChevronDown className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
         )}
       </div>
     );
@@ -138,17 +142,169 @@ export const VendorOrders: React.FC = () => {
     );
   }
 
-  // Show ALL orders, sorted by oldest first
-  const allOrdersSorted = [...orders].sort((a, b) => 
-    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-  );
+  // Filter orders based on active tab
+  const getFilteredOrders = () => {
+    let filteredOrders = orders;
+    
+    if (activeTab !== 'all') {
+      filteredOrders = orders.filter(order => order.status === activeTab);
+    }
+    
+    // Sort by oldest first
+    return filteredOrders.sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  };
+
+  const filteredOrders = getFilteredOrders();
+
+  // Get order counts for each tab
+  const getOrderCounts = () => {
+    return {
+      all: orders.length,
+      placed: orders.filter(o => o.status === 'placed').length,
+      preparing: orders.filter(o => o.status === 'preparing').length,
+      prepared: orders.filter(o => o.status === 'prepared').length,
+      given: orders.filter(o => o.status === 'given').length,
+      cancelled: orders.filter(o => o.status === 'cancelled').length,
+      cancel_requested: orders.filter(o => o.status === 'cancel_requested').length,
+    };
+  };
+
+  const orderCounts = getOrderCounts();
+
+  const handleTabSelect = (tabKey: typeof activeTab) => {
+    setActiveTab(tabKey);
+    setIsMobileNavOpen(false);
+  };
 
   return (
     <div className="space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="px-1">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">All Orders</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">Manage all your orders</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Orders</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your orders by status</p>
+      </div>
+
+      {/* Mobile Tab Navigation */}
+      <div className="sm:hidden">
+        {/* Mobile Tab Header */}
+        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <List className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-gray-900">
+                {[
+                  { key: 'all', label: 'All Orders' },
+                  { key: 'placed', label: 'Placed Orders' },
+                  { key: 'preparing', label: 'Preparing Orders' },
+                  { key: 'prepared', label: 'Prepared Orders' },
+                  { key: 'given', label: 'Given Orders' },
+                  { key: 'cancelled', label: 'Cancelled Orders' },
+                  { key: 'cancel_requested', label: 'Cancel Requests' },
+                ].find(tab => tab.key === activeTab)?.label}
+              </h3>
+              <p className="text-xs text-gray-500">
+                {orderCounts[activeTab]} order{orderCounts[activeTab] !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setIsMobileNavOpen(!isMobileNavOpen)}
+            className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            {isMobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {/* Mobile Tab Menu */}
+        {isMobileNavOpen && (
+          <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-lg">
+            <div className="p-2">
+              {[
+                { key: 'placed', label: 'Placed', count: orderCounts.placed, icon: Clock, color: 'blue' },
+                { key: 'preparing', label: 'Preparing', count: orderCounts.preparing, icon: Clock, color: 'orange' },
+                { key: 'prepared', label: 'Prepared', count: orderCounts.prepared, icon: CheckCircle, color: 'orange' },
+                { key: 'given', label: 'Given', count: orderCounts.given, icon: CheckCircle, color: 'green' },
+                { key: 'cancelled', label: 'Cancelled', count: orderCounts.cancelled, icon: XCircle, color: 'red' },
+                { key: 'cancel_requested', label: 'Cancel Requests', count: orderCounts.cancel_requested, icon: XCircle, color: 'orange' },
+                { key: 'all', label: 'All Orders', count: orderCounts.all, icon: List, color: 'gray' },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => handleTabSelect(tab.key as any)}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`p-2 rounded-lg ${
+                        isActive ? 'bg-blue-100' : `bg-${tab.color}-100`
+                      }`}>
+                        <Icon className={`w-4 h-4 ${
+                          isActive ? 'text-blue-600' : `text-${tab.color}-600`
+                        }`} />
+                      </div>
+                      <span className="text-sm font-medium">{tab.label}</span>
+                    </div>
+                    {tab.count > 0 && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                        isActive
+                          ? 'bg-blue-200 text-blue-800'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Tab Navigation */}
+      <div className="hidden sm:block border-b border-gray-200">
+        <nav className="-mb-px flex space-x-4 lg:space-x-8">
+          {[
+            { key: 'placed', label: 'Placed', count: orderCounts.placed },
+            { key: 'preparing', label: 'Preparing', count: orderCounts.preparing },
+            { key: 'prepared', label: 'Prepared', count: orderCounts.prepared },
+            { key: 'given', label: 'Given', count: orderCounts.given },
+            { key: 'cancelled', label: 'Cancelled', count: orderCounts.cancelled },
+            { key: 'cancel_requested', label: 'Cancel Requests', count: orderCounts.cancel_requested },
+            { key: 'all', label: 'All Orders', count: orderCounts.all },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key as any)}
+              className={`py-2 px-3 lg:px-4 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === tab.key
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+              {tab.count > 0 && (
+                <span className={`ml-2 py-0.5 px-2 rounded-full text-xs ${
+                  activeTab === tab.key
+                    ? 'bg-blue-100 text-blue-600'
+                    : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </nav>
       </div>
 
       {/* Orders Table - Mobile Friendly */}
@@ -156,14 +312,21 @@ export const VendorOrders: React.FC = () => {
         <Card>
           <CardBody className="p-2 sm:p-4 lg:p-6">
             {/* Mobile Card Layout */}
-            <div className="block sm:hidden space-y-4">
-              {allOrdersSorted.map((order) => (
-                <div key={order.id} className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-gray-900">
-                      Order #{order.id.slice(0, 8)}
-                    </h3>
-                    <StatusDropdown order={order} />
+            <div className="block sm:hidden space-y-3">
+              {filteredOrders.map((order) => (
+                <div key={order.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 space-y-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-semibold text-gray-900 truncate">
+                        Order #{order.id.slice(0, 8)}
+                      </h3>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </p>
+                    </div>
+                    <div className="ml-2 flex-shrink-0">
+                      <StatusDropdown order={order} />
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -186,7 +349,7 @@ export const VendorOrders: React.FC = () => {
                   <div className="border-t pt-3">
                     <div className="text-sm font-medium text-gray-700 mb-2">Items:</div>
                     <div className="space-y-1">
-                      {order.order_items.map((item) => (
+                      {order.order_items?.map((item) => (
                         <div key={item.id} className="text-xs text-gray-600">
                           {item.menu_items?.name || 'Unknown Item'} x{item.quantity}
                         </div>
@@ -194,7 +357,7 @@ export const VendorOrders: React.FC = () => {
                     </div>
                   </div>
 
-                  {(order.status === 'cancel_requested' || canDeleteOrder(order.status)) && (
+                  {(order.status === 'cancel_requested' || canDeleteOrder()) && (
                     <div className="border-t pt-3">
                       <div className="flex flex-col space-y-2">
                         {order.status === 'cancel_requested' && (
@@ -203,7 +366,7 @@ export const VendorOrders: React.FC = () => {
                               size="sm"
                               variant="success"
                               onClick={() => handleCancelRequest(order.id, 'accept')}
-                              className="text-xs w-full"
+                              className="text-xs w-full h-10"
                             >
                               Accept Cancellation
                             </Button>
@@ -211,13 +374,13 @@ export const VendorOrders: React.FC = () => {
                               size="sm"
                               variant="outline"
                               onClick={() => handleCancelRequest(order.id, 'reject')}
-                              className="text-xs w-full"
+                              className="text-xs w-full h-10"
                             >
                               Reject Cancellation
                             </Button>
                           </>
                         )}
-                        {canDeleteOrder(order.status) && (
+                        {canDeleteOrder() && (
                           <Button
                             size="sm"
                             variant="danger"
@@ -226,7 +389,7 @@ export const VendorOrders: React.FC = () => {
                               orderNumber: order.id.slice(0, 8) 
                             })}
                             disabled={deletingOrder === order.id}
-                            className="text-xs w-full"
+                            className="text-xs w-full h-10"
                           >
                             <Trash2 className="w-3 h-3 mr-1" />
                             Delete Order
@@ -268,7 +431,7 @@ export const VendorOrders: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {allOrdersSorted.map((order) => (
+                  {filteredOrders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         #{order.id.slice(0, 8)}
@@ -278,7 +441,7 @@ export const VendorOrders: React.FC = () => {
                       </td>
                       <td className="hidden sm:table-cell px-6 py-4 text-sm text-gray-900">
                         <div className="space-y-1">
-                          {order.order_items.map((item) => (
+                          {order.order_items?.map((item) => (
                             <div key={item.id} className="text-xs">
                               {item.menu_items?.name || 'Unknown Item'} x{item.quantity}
                             </div>
@@ -316,7 +479,7 @@ export const VendorOrders: React.FC = () => {
                               </Button>
                             </>
                           )}
-                          {canDeleteOrder(order.status) && (
+                          {canDeleteOrder() && (
                             <Button
                               size="sm"
                               variant="danger"
@@ -341,12 +504,19 @@ export const VendorOrders: React.FC = () => {
           </CardBody>
         </Card>
 
-        {allOrdersSorted.length === 0 && (
+        {filteredOrders.length === 0 && (
           <Card>
             <CardBody className="text-center py-8 sm:py-12">
               <List className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders yet</h3>
-              <p className="text-gray-500">Orders will appear here when customers place them.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {activeTab === 'all' ? 'No orders yet' : `No ${activeTab.replace('_', ' ')} orders`}
+              </h3>
+              <p className="text-gray-500">
+                {activeTab === 'all' 
+                  ? 'Orders will appear here when customers place them.'
+                  : `No orders with "${activeTab.replace('_', ' ')}" status found.`
+                }
+              </p>
             </CardBody>
           </Card>
         )}

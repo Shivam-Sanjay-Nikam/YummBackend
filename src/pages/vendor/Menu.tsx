@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
-import { Plus, Edit3, UtensilsCrossed, Trash2 } from 'lucide-react';
+import { Plus, Edit3, UtensilsCrossed, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MenuItem, MenuItemStatus } from '../../types';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabase';
@@ -16,6 +16,7 @@ export const VendorMenu: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
   const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
@@ -60,6 +61,24 @@ export const VendorMenu: React.FC = () => {
     }
   };
 
+  const handleToggleStatus = async (item: MenuItem) => {
+    const newStatus: MenuItemStatus = item.status === 'active' ? 'inactive' : 'active';
+    setTogglingStatus(item.id);
+    
+    try {
+      await api.vendor.updateMenuItem({
+        menu_item_id: item.id,
+        status: newStatus,
+      });
+      toast.success(`Menu item ${newStatus === 'active' ? 'activated' : 'deactivated'} successfully`);
+      loadMenuItems();
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Failed to update menu item status');
+    } finally {
+      setTogglingStatus(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -90,6 +109,24 @@ export const VendorMenu: React.FC = () => {
                   {item.status === 'active' ? 'Active' : 'Inactive'}
                 </Badge>
                 <div className="flex space-x-1">
+                  <button
+                    onClick={() => handleToggleStatus(item)}
+                    disabled={togglingStatus === item.id}
+                    className={`p-3 rounded-lg transition-all duration-200 ${
+                      item.status === 'active' 
+                        ? 'text-green-600 hover:text-green-700 hover:bg-green-50' 
+                        : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                    } ${togglingStatus === item.id ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    title={`${item.status === 'active' ? 'Deactivate' : 'Activate'} item`}
+                  >
+                    {togglingStatus === item.id ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-2 border-current border-t-transparent"></div>
+                    ) : item.status === 'active' ? (
+                      <ToggleRight className="w-6 h-6" />
+                    ) : (
+                      <ToggleLeft className="w-6 h-6" />
+                    )}
+                  </button>
                   <button
                     onClick={() => handleEdit(item)}
                     className="p-2 text-gray-600 hover:text-blue-600 transition-colors"
@@ -169,6 +206,7 @@ const MenuItemModal: React.FC<{
     try {
       await api.vendor.addMenuItem({
         name,
+        description: description || undefined,
         price: parseFloat(price),
         image_url: undefined,
         status: 'active',
@@ -300,6 +338,7 @@ const EditMenuItemModal: React.FC<{
       await api.vendor.updateMenuItem({
         menu_item_id: item.id,
         name,
+        description: description || undefined,
         price: parseFloat(price),
         image_url: undefined,
         status,
