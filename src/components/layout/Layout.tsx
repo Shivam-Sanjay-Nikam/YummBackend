@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navbar } from './Navbar';
 import { Sidebar } from './Sidebar';
+import { MobileNav } from './MobileNav';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,10 +13,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Navbar />
       <div className="flex">
         <Sidebar />
-        <main className="flex-1 p-6 lg:ml-64">
+        <main className="flex-1 p-6 lg:ml-64 pb-20 lg:pb-6">
           <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
+      <MobileNav />
     </div>
   );
 };

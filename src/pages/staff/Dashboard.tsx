@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-import { Users, Store, DollarSign, ShoppingCart, RefreshCw } from 'lucide-react';
+import { Users, Store, IndianRupee, ShoppingCart, RefreshCw } from 'lucide-react';
 import { DashboardStats } from '../../types';
 import { api } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
 export const StaffDashboard: React.FC = () => {
+  const { user } = useAuthStore();
   const [stats, setStats] = useState<DashboardStats>({
     total_orders: 0,
     total_revenue: 0,
@@ -16,38 +18,30 @@ export const StaffDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (user) {
+      loadStats();
+    }
+  }, [user]);
 
   const loadStats = async () => {
+    if (!user?.email) return;
+    
     try {
-      console.log('Loading dashboard stats...');
-      
       // Get employees count
-      const { data: employees, error: employeesError } = await api.data.getEmployees();
-      console.log('Employees data:', employees, 'Error:', employeesError);
+      const { data: employees, error: employeesError } = await api.data.getEmployees(user.email);
       if (employeesError) throw employeesError;
 
       // Get vendors count
-      const { data: vendors, error: vendorsError } = await api.data.getVendorsForStaff();
-      console.log('Vendors data:', vendors, 'Error:', vendorsError);
+      const { data: vendors, error: vendorsError } = await api.data.getVendorsForStaff(user.email);
       if (vendorsError) throw vendorsError;
 
       // Get orders count and revenue
-      const { data: orders, error: ordersError } = await api.data.getOrders('organization_staff');
-      console.log('Orders data:', orders, 'Error:', ordersError);
+      const { data: orders, error: ordersError } = await api.data.getOrders('organization_staff', user.email);
       if (ordersError) throw ordersError;
 
       const totalRevenue = orders?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
 
       setStats({
-        total_orders: orders?.length || 0,
-        total_revenue: totalRevenue,
-        active_employees: employees?.length || 0,
-        active_vendors: vendors?.length || 0,
-      });
-      
-      console.log('Final stats:', {
         total_orders: orders?.length || 0,
         total_revenue: totalRevenue,
         active_employees: employees?.length || 0,
@@ -70,8 +64,8 @@ export const StaffDashboard: React.FC = () => {
     },
     {
       title: 'Total Revenue',
-      value: `$${stats.total_revenue.toFixed(2)}`,
-      icon: DollarSign,
+      value: `₹${stats.total_revenue.toFixed(2)}`,
+      icon: IndianRupee,
       color: 'green',
     },
     {
@@ -139,26 +133,15 @@ export const StaffDashboard: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
-          </CardHeader>
-          <CardBody className="space-y-3">
-            <QuickActionButton icon={Users} text="Add Employee" href="/staff/employees" />
-            <QuickActionButton icon={Store} text="Add Vendor" href="/staff/vendors" />
-          </CardBody>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
-          </CardHeader>
-          <CardBody>
-            <p className="text-gray-500 text-sm">No recent activity</p>
-          </CardBody>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
+        </CardHeader>
+        <CardBody className="space-y-3">
+          <QuickActionButton icon={Users} text="Add Employee" href="/staff/employees" />
+          <QuickActionButton icon={Store} text="Add Vendor" href="/staff/vendors" />
+        </CardBody>
+      </Card>
     </div>
   );
 };

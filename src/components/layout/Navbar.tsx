@@ -6,17 +6,12 @@ import { api } from '../../services/api';
 import toast from 'react-hot-toast';
 
 export const Navbar: React.FC = () => {
-  const { user, setUser } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const totalItems = useCartStore((state) => state.getTotalItems());
 
-  const handleLogout = async () => {
-    const { error } = await api.auth.logout();
-    if (error) {
-      toast.error('Failed to logout');
-    } else {
-      setUser(null);
-      toast.success('Logged out successfully');
-    }
+  const handleLogout = () => {
+    logout();
+    toast.success('Logged out successfully');
   };
 
   if (!user) return null;
@@ -25,8 +20,12 @@ export const Navbar: React.FC = () => {
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-2">
-            <ShoppingBag className="w-8 h-8 text-blue-500" />
+          <div className="flex items-center space-x-3">
+            <img 
+              src="/YummLogo.png" 
+              alt="Yuum Logo" 
+              className="h-8 w-8 object-contain"
+            />
             <span className="text-xl font-bold text-gray-900">Yuum</span>
           </div>
 
@@ -47,7 +46,7 @@ export const Navbar: React.FC = () => {
               <span className="text-sm font-medium">{user.name || user.email}</span>
               {user.role === 'employee' && user.balance !== undefined && (
                 <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                  ${user.balance.toFixed(2)}
+                  ₹{user.balance.toFixed(2)}
                 </span>
               )}
             </div>

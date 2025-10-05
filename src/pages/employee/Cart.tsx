@@ -59,7 +59,7 @@ export const EmployeeCart: React.FC = () => {
             <ShoppingCart className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Your cart is empty</h3>
             <p className="text-gray-500 mb-6">Start adding items from vendors</p>
-            <Button onClick={() => (window.location.href = '/employee/browse')}>
+            <Button onClick={() => (window.location.href = '/employee/dashboard')}>
               Browse Vendors
             </Button>
           </CardBody>
@@ -93,7 +93,7 @@ export const EmployeeCart: React.FC = () => {
                       <p className="text-sm text-gray-600 mt-1">{item.menu_item.description}</p>
                     )}
                     <p className="text-sm font-medium text-green-600 mt-2">
-                      ${item.menu_item.price.toFixed(2)} each
+                      ₹{item.menu_item.price.toFixed(2)} each
                     </p>
                   </div>
 
@@ -136,13 +136,13 @@ export const EmployeeCart: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">${getTotalAmount().toFixed(2)}</span>
+                  <span className="font-medium">₹{getTotalAmount().toFixed(2)}</span>
                 </div>
                 <div className="border-t border-gray-200 pt-2">
                   <div className="flex justify-between">
                     <span className="text-lg font-semibold">Total</span>
                     <span className="text-lg font-bold text-green-600">
-                      ${getTotalAmount().toFixed(2)}
+                      ₹{getTotalAmount().toFixed(2)}
                     </span>
                   </div>
                 </div>

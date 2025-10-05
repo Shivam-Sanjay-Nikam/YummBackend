@@ -2,7 +2,9 @@ import React, { useEffect } from 'react';
 import { useAuthStore } from './store/authStore';
 import { Layout } from './components/layout/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { Register } from './pages/Register';
 import { StaffDashboard } from './pages/staff/Dashboard';
 import { StaffEmployees } from './pages/staff/Employees';
 import { StaffVendors } from './pages/staff/Vendors';
@@ -13,13 +15,25 @@ import { VendorDashboard } from './pages/vendor/Dashboard';
 import { VendorMenu } from './pages/vendor/Menu';
 
 export const Router: React.FC = () => {
-  const { user, loading, initialize } = useAuthStore();
+  const { user, loading, initialize, refreshUser } = useAuthStore();
 
   useEffect(() => {
     (async () => {
       await initialize();
     })();
   }, [initialize]);
+
+  // Check session persistence on window focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (user) {
+        refreshUser();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [user, refreshUser]);
 
   if (loading) {
     return (
@@ -30,13 +44,29 @@ export const Router: React.FC = () => {
   }
 
   if (!user) {
-    return <Login />;
+    const path = window.location.pathname;
+    if (path === '/login') {
+      return <Login />;
+    }
+    if (path === '/register') {
+      return <Register />;
+    }
+    return <Home />;
   }
 
   const path = window.location.pathname;
 
   const renderRoute = () => {
     if (user.role === 'organization_staff') {
+      if (path === '/staff/dashboard') {
+        return (
+          <ProtectedRoute allowedRoles={['organization_staff']}>
+            <Layout>
+              <StaffDashboard />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
       if (path === '/staff/employees') {
         return (
           <ProtectedRoute allowedRoles={['organization_staff']}>
@@ -55,16 +85,21 @@ export const Router: React.FC = () => {
           </ProtectedRoute>
         );
       }
-      return (
-        <ProtectedRoute allowedRoles={['organization_staff']}>
-          <Layout>
-            <StaffDashboard />
-          </Layout>
-        </ProtectedRoute>
-      );
+      // Default redirect to staff dashboard
+      window.location.href = '/staff/dashboard';
+      return null;
     }
 
     if (user.role === 'employee') {
+      if (path === '/employee/dashboard') {
+        return (
+          <ProtectedRoute allowedRoles={['employee']}>
+            <Layout>
+              <EmployeeBrowse />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
       if (path === '/employee/cart') {
         return (
           <ProtectedRoute allowedRoles={['employee']}>
@@ -83,16 +118,21 @@ export const Router: React.FC = () => {
           </ProtectedRoute>
         );
       }
-      return (
-        <ProtectedRoute allowedRoles={['employee']}>
-          <Layout>
-            <EmployeeBrowse />
-          </Layout>
-        </ProtectedRoute>
-      );
+      // Default redirect to employee dashboard
+      window.location.href = '/employee/dashboard';
+      return null;
     }
 
     if (user.role === 'vendor') {
+      if (path === '/vendor/dashboard') {
+        return (
+          <ProtectedRoute allowedRoles={['vendor']}>
+            <Layout>
+              <VendorDashboard />
+            </Layout>
+          </ProtectedRoute>
+        );
+      }
       if (path === '/vendor/menu') {
         return (
           <ProtectedRoute allowedRoles={['vendor']}>
@@ -102,13 +142,9 @@ export const Router: React.FC = () => {
           </ProtectedRoute>
         );
       }
-      return (
-        <ProtectedRoute allowedRoles={['vendor']}>
-          <Layout>
-            <VendorDashboard />
-          </Layout>
-        </ProtectedRoute>
-      );
+      // Default redirect to vendor dashboard
+      window.location.href = '/vendor/dashboard';
+      return null;
     }
 
     return <Login />;

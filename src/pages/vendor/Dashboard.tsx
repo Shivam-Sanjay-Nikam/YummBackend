@@ -5,19 +5,25 @@ import { Badge } from '../../components/ui/Badge';
 import { Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
+import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
 export const VendorDashboard: React.FC = () => {
+  const { user } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadOrders();
-  }, []);
+    if (user) {
+      loadOrders();
+    }
+  }, [user]);
 
   const loadOrders = async () => {
+    if (!user?.email) return;
+    
     try {
-      const { data, error } = await api.data.getOrders('vendor');
+      const { data, error } = await api.data.getOrders('vendor', user.email);
       if (error) throw error;
       setOrders(data || []);
     } catch (error: any) {
@@ -131,7 +137,7 @@ export const VendorDashboard: React.FC = () => {
                 </div>
                 <div className="text-right">
                   <p className="text-2xl font-bold text-green-600">
-                    ${order.total_amount.toFixed(2)}
+                    ₹{order.total_amount.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -144,7 +150,7 @@ export const VendorDashboard: React.FC = () => {
                       <span className="text-gray-600">
                         {item.menu_items?.name || 'Unknown Item'} x{item.quantity}
                       </span>
-                      <span className="font-medium">${item.total_cost.toFixed(2)}</span>
+                      <span className="font-medium">₹{item.total_cost.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>

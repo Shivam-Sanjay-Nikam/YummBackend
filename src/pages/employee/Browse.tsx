@@ -6,9 +6,11 @@ import { Store, ShoppingCart, Plus } from 'lucide-react';
 import { Vendor, MenuItem } from '../../types';
 import { api } from '../../services/api';
 import { useCartStore } from '../../store/cartStore';
+import { useAuthStore } from '../../store/authStore';
 import toast from 'react-hot-toast';
 
 export const EmployeeBrowse: React.FC = () => {
+  const { user } = useAuthStore();
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -16,12 +18,16 @@ export const EmployeeBrowse: React.FC = () => {
   const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
-    loadVendors();
-  }, []);
+    if (user) {
+      loadVendors();
+    }
+  }, [user]);
 
   const loadVendors = async () => {
+    if (!user?.email) return;
+    
     try {
-      const { data, error } = await api.data.getVendors();
+      const { data, error } = await api.data.getVendors(user.email);
       if (error) throw error;
       setVendors(data || []);
     } catch (error: any) {
@@ -114,7 +120,7 @@ export const EmployeeBrowse: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between mt-4">
                       <span className="text-xl font-bold text-green-600">
-                        ${item.price.toFixed(2)}
+                        ₹{item.price.toFixed(2)}
                       </span>
                       <Button size="sm" onClick={() => handleAddToCart(item)}>
                         <Plus className="w-4 h-4 mr-1" />

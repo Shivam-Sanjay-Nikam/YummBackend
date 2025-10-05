@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { supabase } from '../lib/supabase';
+import { authenticateUser, createUser, CustomUser } from './auth';
+import { useAuthStore } from '../store/authStore';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sjtttdnqjgwggczhwzad.supabase.co/functions/v1';
 
@@ -10,11 +12,10 @@ const apiClient = axios.create({
   },
 });
 
+// Custom auth interceptor - we'll handle this differently since we're not using Supabase Auth
 apiClient.interceptors.request.use(async (config: any) => {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
-  }
+  // For now, we'll handle authentication in individual API calls
+  // You can implement a custom token system if needed
   return config;
 });
 
@@ -22,67 +23,252 @@ export const api = {
   auth: {
     registerOrganization: async (data: { 
       org_name: string; 
-      staff_name: string; 
+      staff_name?: string; // Made optional
       staff_email: string; 
       staff_password: string;
       staff_phone?: string;
       latitude?: number;
       longitude?: number;
-      special_number?: string;
+      special_number: string; // Made required
     }) => {
-      console.log('Registering organization with data:', data);
-      console.log('API_BASE_URL:', API_BASE_URL);
-      console.log('Anon key:', import.meta.env.VITE_SUPABASE_ANON_KEY);
-      
-      // For registration, no authentication is required (public endpoint)
-      const response = await fetch(`${API_BASE_URL}/register_organization`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      
-      console.log('Registration response status:', response.status);
-      const result = await response.json();
-      console.log('Registration response:', result);
-      return result;
+      try {
+        // Check if email already exists
+        const { data: existingStaff } = await supabase
+          .from('organization_staff')
+          .select('email')
+          .eq('email', data.staff_email);
+
+        if (existingStaff && existingStaff.length > 0) {
+          return { error: { message: 'Email already exists' } };
+        }
+
+        // Check if special number already exists
+        const { data: existingOrg } = await supabase
+          .from('organizations')
+          .select('special_number')
+          .eq('special_number', data.special_number);
+
+        if (existingOrg && existingOrg.length > 0) {
+          return { error: { message: 'Special number already exists. Please choose a different 6-digit number.' } };
+        }
+
+        // Create organization first
+        const { data: organization, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: data.org_name,
+            latitude: data.latitude,
+            longitude: data.longitude,
+            special_number: data.special_number
+          })
+          .select()
+          .single();
+
+        if (orgError || !organization) {
+          return { error: { message: `Failed to create organization: ${orgError?.message}` } };
+        }
+
+        // Create staff member using custom auth
+        const authResult = await createUser(
+          data.staff_email,
+          data.staff_password,
+          data.staff_name || 'Admin',
+          'organization_staff',
+          organization.id,
+          {
+            phone_number: data.staff_phone
+          }
+        );
+
+        if (!authResult.success) {
+          // Clean up organization if staff creation failed
+          await supabase.from('organizations').delete().eq('id', organization.id);
+          return { error: { message: authResult.error } };
+        }
+
+        return {
+          data: {
+            organization: {
+              id: organization.id,
+              name: organization.name,
+              special_number: organization.special_number,
+              created_at: organization.created_at
+            },
+            staff: {
+              id: authResult.user!.id,
+              name: authResult.user!.name,
+              email: authResult.user!.email,
+              phone_number: authResult.user!.phone_number,
+              created_at: new Date().toISOString()
+            }
+          }
+        };
+
+      } catch (error: any) {
+        console.error('Registration error:', error);
+        return { error: { message: 'Registration failed' } };
+      }
     },
 
     login: async (email: string, password: string) => {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-      return { data, error };
+      const result = await authenticateUser(email, password);
+      if (result.success) {
+        return { data: { user: result.user }, error: null };
+      } else {
+        return { data: null, error: { message: result.error } };
+      }
     },
 
     logout: async () => {
-      const { error } = await supabase.auth.signOut();
-      return { error };
+      // For custom auth, logout is handled by clearing local state
+      return { error: null };
     },
   },
 
   staff: {
-    createEmployee: (data: { 
+    createEmployee: async (data: { 
       name: string; 
       email: string; 
       password: string; 
       balance?: number;
       phone_number?: string;
       special_number?: string;
-    }) =>
-      apiClient.post('/create_employee', data),
+    }) => {
+      try {
+        // Get the current user's org_id
+        const { user } = useAuthStore.getState();
+        if (!user?.org_id) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
 
-    createVendor: (data: { 
+        // Create employee in the database directly
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .insert({
+            org_id: user.org_id,
+            name: data.name,
+            email: data.email,
+            balance: data.balance || 0,
+            phone_number: data.phone_number,
+            special_number: data.special_number,
+          })
+          .select()
+          .single();
+
+        if (employeeError) {
+          return { data: null, error: employeeError };
+        }
+
+        // Create the user account
+        const authResult = await createUser(
+          data.email,
+          data.password,
+          data.name,
+          'employee',
+          user.org_id,
+          { employee_id: employeeData.id }
+        );
+
+        if (authResult.error) {
+          // If user creation fails, delete the employee record
+          await supabase.from('employees').delete().eq('id', employeeData.id);
+          return { data: null, error: { message: authResult.error } };
+        }
+
+        return {
+          data: {
+            employee: employeeData,
+            auth: {
+              user_id: authResult.user?.id,
+              email: data.email,
+            }
+          },
+          error: null
+        };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message || 'Failed to create employee' } };
+      }
+    },
+
+    createVendor: async (data: { 
       name: string; 
       email: string; 
       password: string; 
       phone_number?: string;
       latitude?: number;
       longitude?: number;
-    }) =>
-      apiClient.post('/create_vendor', data),
+    }) => {
+      try {
+        // Get the current user's org_id
+        const { user } = useAuthStore.getState();
+        if (!user?.org_id) {
+          return { data: null, error: { message: 'User not authenticated' } };
+        }
+
+        // Create vendor in the database directly
+        const vendorInsertData: any = {
+          org_id: user.org_id,
+          name: data.name,
+          email: data.email,
+        };
+
+        // Only add optional fields if they have values
+        if (data.phone_number) {
+          vendorInsertData.phone_number = data.phone_number;
+        }
+        if (data.latitude !== undefined) {
+          vendorInsertData.latitude = data.latitude;
+        }
+        if (data.longitude !== undefined) {
+          vendorInsertData.longitude = data.longitude;
+        }
+
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('vendors')
+          .insert(vendorInsertData)
+          .select();
+
+        if (vendorError) {
+          console.error('Vendor creation error:', vendorError);
+          return { data: null, error: vendorError };
+        }
+
+        if (!vendorData || vendorData.length === 0) {
+          return { data: null, error: { message: 'Failed to create vendor - no data returned' } };
+        }
+
+        const createdVendor = vendorData[0];
+
+        // Create the user account
+        const authResult = await createUser(
+          data.email,
+          data.password,
+          data.name,
+          'vendor',
+          user.org_id,
+          { vendor_id: createdVendor.id }
+        );
+
+        if (authResult.error) {
+          // If user creation fails, delete the vendor record
+          await supabase.from('vendors').delete().eq('id', createdVendor.id);
+          return { data: null, error: { message: authResult.error } };
+        }
+
+        return {
+          data: {
+            vendor: createdVendor,
+            auth: {
+              user_id: authResult.user?.id,
+              email: data.email,
+            }
+          },
+          error: null
+        };
+      } catch (error: any) {
+        return { data: null, error: { message: error.message || 'Failed to create vendor' } };
+      }
+    },
 
     updateEmployeeBalance: (data: { 
       employee_id: string; 
@@ -124,15 +310,14 @@ export const api = {
 
   // Generic data fetching methods
   data: {
-    getVendors: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { data: null, error: 'Not authenticated' };
+    getVendors: async (userEmail: string) => {
+      if (!userEmail) return { data: null, error: 'Not authenticated' };
 
       // Try to get user's org_id from organization_staff first
       let { data: userRecord } = await supabase
         .from('organization_staff')
         .select('org_id')
-        .eq('email', user.email)
+        .eq('email', userEmail)
         .single();
 
       // If not found in organization_staff, try employees table
@@ -140,7 +325,7 @@ export const api = {
         const { data: employeeRecord } = await supabase
           .from('employees')
           .select('org_id')
-          .eq('email', user.email)
+          .eq('email', userEmail)
           .single();
         userRecord = employeeRecord;
       }
@@ -150,7 +335,7 @@ export const api = {
         const { data: vendorRecord } = await supabase
           .from('vendors')
           .select('org_id')
-          .eq('email', user.email)
+          .eq('email', userEmail)
           .single();
         userRecord = vendorRecord;
       }
@@ -173,9 +358,8 @@ export const api = {
       return { data, error };
     },
 
-    getOrders: async (userRole: string) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { data: null, error: 'Not authenticated' };
+    getOrders: async (userRole: string, userEmail: string) => {
+      if (!userEmail) return { data: null, error: 'Not authenticated' };
 
       let query = supabase.from('orders').select(`
         *,
@@ -189,7 +373,7 @@ export const api = {
         const { data: employee } = await supabase
           .from('employees')
           .select('id')
-          .eq('email', user.email)
+          .eq('email', userEmail)
           .single();
         if (employee) {
           query = query.eq('employee_id', employee.id);
@@ -199,7 +383,7 @@ export const api = {
         const { data: vendor } = await supabase
           .from('vendors')
           .select('id')
-          .eq('email', user.email)
+          .eq('email', userEmail)
           .single();
         if (vendor) {
           query = query.eq('vendor_id', vendor.id);
@@ -210,20 +394,15 @@ export const api = {
       return { data, error };
     },
 
-    getEmployees: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { data: null, error: 'Not authenticated' };
-
-      console.log('Getting employees for user:', user.email);
+    getEmployees: async (userEmail: string) => {
+      if (!userEmail) return { data: null, error: 'Not authenticated' };
 
       // Get user's org_id from the auth store
       const { data: userRecord, error: userError } = await supabase
         .from('organization_staff')
         .select('org_id')
-        .eq('email', user.email)
+        .eq('email', userEmail)
         .single();
-
-      console.log('User record:', userRecord, 'Error:', userError);
 
       if (!userRecord) return { data: null, error: 'User not found' };
 
@@ -231,25 +410,22 @@ export const api = {
         .from('employees')
         .select('*')
         .eq('org_id', userRecord.org_id);
-
-      console.log('Employees query result:', data, 'Error:', error);
       return { data, error };
     },
 
-    getVendorsForStaff: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { data: null, error: 'Not authenticated' };
-
-      console.log('Getting vendors for user:', user.email);
+    getVendorsForStaff: async (userEmail: string) => {
+      if (!userEmail) return { data: null, error: 'Not authenticated' };
 
       // Get user's org_id from the auth store
       const { data: userRecord, error: userError } = await supabase
         .from('organization_staff')
         .select('org_id')
-        .eq('email', user.email)
+        .eq('email', userEmail)
         .single();
 
-      console.log('User record:', userRecord, 'Error:', userError);
+      if (userError) {
+        return { data: null, error: userError };
+      }
 
       if (!userRecord) return { data: null, error: 'User not found' };
 
@@ -258,7 +434,6 @@ export const api = {
         .select('*')
         .eq('org_id', userRecord.org_id);
 
-      console.log('Vendors query result:', data, 'Error:', error);
       return { data, error };
     },
   },

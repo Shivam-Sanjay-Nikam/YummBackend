@@ -8,19 +8,19 @@ export const Sidebar: React.FC = () => {
   if (!user) return null;
 
   const staffLinks = [
-    { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { name: 'Dashboard', href: '/staff/dashboard', icon: LayoutDashboard },
     { name: 'Employees', href: '/staff/employees', icon: Users },
     { name: 'Vendors', href: '/staff/vendors', icon: Store },
   ];
 
   const employeeLinks = [
-    { name: 'Browse', href: '/', icon: ShoppingBag },
+    { name: 'Browse', href: '/employee/dashboard', icon: ShoppingBag },
     { name: 'Cart', href: '/employee/cart', icon: ShoppingCart },
     { name: 'Orders', href: '/employee/orders', icon: ShoppingBag },
   ];
 
   const vendorLinks = [
-    { name: 'Orders', href: '/', icon: ShoppingBag },
+    { name: 'Dashboard', href: '/vendor/dashboard', icon: LayoutDashboard },
     { name: 'Menu', href: '/vendor/menu', icon: UtensilsCrossed },
   ];
 

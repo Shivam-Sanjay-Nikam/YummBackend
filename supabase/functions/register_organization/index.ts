@@ -13,10 +13,10 @@ interface RegisterOrganizationRequest {
   org_name: string;
   latitude?: number;
   longitude?: number;
-  special_number?: string;
+  special_number: string; // Required field
   
   // Staff data
-  staff_name: string;
+  staff_name?: string; // Made optional
   staff_email: string;
   staff_password: string;
   staff_phone?: string;
@@ -59,8 +59,8 @@ Deno.serve(async (req: Request) => {
     const body: RegisterOrganizationRequest = await req.json();
 
     // Validate required fields
-    if (!body.org_name || !body.staff_name || !body.staff_email || !body.staff_password) {
-      return createErrorResponse('Missing required fields: org_name, staff_name, staff_email, staff_password', 400);
+    if (!body.org_name || !body.staff_email || !body.staff_password || !body.special_number) {
+      return createErrorResponse('Missing required fields: org_name, staff_email, staff_password, special_number', 400);
     }
 
     // Validate email format
@@ -74,6 +74,12 @@ Deno.serve(async (req: Request) => {
       return createErrorResponse('Password must be at least 6 characters long', 400);
     }
 
+    // Validate special number format (must be exactly 6 digits)
+    const specialNumberRegex = /^\d{6}$/;
+    if (!specialNumberRegex.test(body.special_number)) {
+      return createErrorResponse('Special number must be exactly 6 digits', 400);
+    }
+
     // Check if email already exists
     const { data: existingStaff } = await supabase
       .from('organization_staff')
@@ -83,6 +89,17 @@ Deno.serve(async (req: Request) => {
 
     if (existingStaff) {
       return createErrorResponse('Email already exists', 400);
+    }
+
+    // Check if special number already exists
+    const { data: existingOrg } = await supabase
+      .from('organizations')
+      .select('special_number')
+      .eq('special_number', body.special_number)
+      .single();
+
+    if (existingOrg) {
+      return createErrorResponse('Special number already exists. Please choose a different 6-digit number.', 400);
     }
 
     // Start transaction - create organization first
@@ -106,7 +123,7 @@ Deno.serve(async (req: Request) => {
       .from('organization_staff')
       .insert({
         org_id: organization.id,
-        name: body.staff_name,
+        name: body.staff_name || 'Admin', // Default to 'Admin' if not provided
         email: body.staff_email,
         phone_number: body.staff_phone
       })
@@ -125,7 +142,7 @@ Deno.serve(async (req: Request) => {
       body.staff_password,
       {
         org_id: organization.id,
-        name: body.staff_name,
+        name: body.staff_name || 'Admin', // Default to 'Admin' if not provided
         phone_number: body.staff_phone
       },
       'organization_staff'
