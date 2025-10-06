@@ -6,6 +6,7 @@ import { Clock, CheckCircle, XCircle, List, ChevronDown, Trash2, Menu, X } from 
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useRealtimeOrders } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const VendorOrders: React.FC = () => {
@@ -23,6 +24,13 @@ export const VendorOrders: React.FC = () => {
       loadOrders();
     }
   }, [user]);
+
+  // Set up real-time subscription for orders
+  useRealtimeOrders(() => {
+    if (user) {
+      loadOrders();
+    }
+  });
 
   const loadOrders = async () => {
     if (!user?.email) return;

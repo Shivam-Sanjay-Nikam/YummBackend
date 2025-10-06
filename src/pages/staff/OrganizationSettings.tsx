@@ -6,6 +6,7 @@ import { Building2, MapPin, Hash, Save, Navigation } from 'lucide-react';
 import { Organization } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { useRealtimeOrganizations } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const OrganizationSettings: React.FC = () => {
@@ -26,6 +27,13 @@ export const OrganizationSettings: React.FC = () => {
       loadOrganization();
     }
   }, [user]);
+
+  // Set up real-time subscription for organizations
+  useRealtimeOrganizations(() => {
+    if (user) {
+      loadOrganization();
+    }
+  });
 
   const loadOrganization = async () => {
     if (!user?.email) return;

@@ -7,6 +7,7 @@ import { Vendor, MenuItem } from '../../types';
 import { api } from '../../services/api';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
+import { useRealtimeVendors, useRealtimeMenuItems } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const EmployeeBrowse: React.FC = () => {
@@ -22,6 +23,19 @@ export const EmployeeBrowse: React.FC = () => {
       loadVendors();
     }
   }, [user]);
+
+  // Set up real-time subscriptions
+  useRealtimeVendors(() => {
+    if (user) {
+      loadVendors();
+    }
+  });
+
+  useRealtimeMenuItems(() => {
+    if (selectedVendor) {
+      loadMenuItems(selectedVendor);
+    }
+  });
 
   const loadVendors = async () => {
     if (!user?.email) return;

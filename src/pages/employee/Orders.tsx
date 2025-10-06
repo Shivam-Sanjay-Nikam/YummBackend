@@ -7,6 +7,7 @@ import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { confirmManager } from '../../components/ui/ConfirmDialog';
+import { useRealtimeOrders } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const EmployeeOrders: React.FC = () => {
@@ -19,6 +20,13 @@ export const EmployeeOrders: React.FC = () => {
       loadOrders();
     }
   }, [user]);
+
+  // Set up real-time subscription for orders
+  useRealtimeOrders(() => {
+    if (user) {
+      loadOrders();
+    }
+  });
 
   const loadOrders = async () => {
     if (!user?.email) return;
@@ -152,7 +160,7 @@ export const EmployeeOrders: React.FC = () => {
                     {getStatusBadge(order.status)}
                   </div>
                   <p className="text-sm text-gray-600">
-                    {order.vendor?.name || 'Unknown Vendor'}
+                    {order.vendors?.name || 'Unknown Vendor'}
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
                     {new Date(order.created_at).toLocaleString()}
@@ -170,9 +178,7 @@ export const EmployeeOrders: React.FC = () => {
                       disabled={!canCancelOrder(order)}
                       className="mt-2"
                       title={!canCancelOrder(order) ? 
-                        (order.status === 'given' ? 
-                          'Order has already been given to employee' : 
-                          'Order cannot be cancelled in current status') : 
+                        'Order cannot be cancelled in current status' : 
                         'Request cancellation for this order'
                       }
                     >
@@ -185,7 +191,7 @@ export const EmployeeOrders: React.FC = () => {
               <div className="border-t border-gray-200 pt-4">
                 <h4 className="text-sm font-medium text-gray-700 mb-3">Order Items</h4>
                 <div className="space-y-2">
-                  {order.order_items.map((item) => (
+                  {order.order_items?.map((item) => (
                     <div key={item.id} className="flex justify-between text-sm">
                       <span className="text-gray-600">
                         {item.menu_items?.name || 'Unknown Item'} x{item.quantity}

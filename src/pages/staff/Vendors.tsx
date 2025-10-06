@@ -8,6 +8,7 @@ import { Vendor } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import { useRealtimeVendors } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const StaffVendors: React.FC = () => {
@@ -26,6 +27,13 @@ export const StaffVendors: React.FC = () => {
       loadVendors();
     }
   }, [user]);
+
+  // Set up real-time subscription for vendors
+  useRealtimeVendors(() => {
+    if (user) {
+      loadVendors();
+    }
+  });
 
   const loadVendors = async () => {
     if (!user?.email) return;

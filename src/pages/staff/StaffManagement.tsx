@@ -8,6 +8,7 @@ import { OrganizationStaff } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import { useRealtimeOrganizationStaff } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const StaffManagement: React.FC = () => {
@@ -26,6 +27,13 @@ export const StaffManagement: React.FC = () => {
       loadStaff();
     }
   }, [user]);
+
+  // Set up real-time subscription for organization staff
+  useRealtimeOrganizationStaff(() => {
+    if (user) {
+      loadStaff();
+    }
+  });
 
   const loadStaff = async () => {
     if (!user?.email) return;

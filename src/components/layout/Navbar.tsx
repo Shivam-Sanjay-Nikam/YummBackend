@@ -3,6 +3,7 @@ import { LogOut, User, ShoppingCart, Building2 } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { api } from '../../services/api';
+import { useRealtimeOrganizationStaff, useRealtimeOrganizations } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 import { confirmManager } from '../ui/ConfirmDialog';
 
@@ -76,6 +77,19 @@ export const Navbar: React.FC = () => {
     window.addEventListener('userUpdated', handleUserUpdate);
     return () => window.removeEventListener('userUpdated', handleUserUpdate);
   }, [user, setUser]);
+
+  // Set up real-time subscriptions for user and organization updates
+  useRealtimeOrganizationStaff(() => {
+    if (user?.email) {
+      handleUserUpdate();
+    }
+  });
+
+  useRealtimeOrganizations(() => {
+    if (user?.email) {
+      loadOrgName();
+    }
+  });
 
   const loadOrgName = async () => {
     if (user?.email) {

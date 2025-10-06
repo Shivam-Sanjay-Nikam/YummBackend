@@ -10,6 +10,7 @@ import { api } from '../../services/api';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 import { confirmManager } from '../../components/ui/ConfirmDialog';
+import { useRealtimeMenuItems } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const VendorMenu: React.FC = () => {
@@ -23,6 +24,11 @@ export const VendorMenu: React.FC = () => {
   useEffect(() => {
     loadMenuItems();
   }, []);
+
+  // Set up real-time subscription for menu items
+  useRealtimeMenuItems(() => {
+    loadMenuItems();
+  });
 
   const loadMenuItems = async () => {
     if (!user?.user_id) return;

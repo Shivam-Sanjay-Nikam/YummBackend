@@ -8,6 +8,7 @@ import { Employee } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
+import { useRealtimeEmployees } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
 export const StaffEmployees: React.FC = () => {
@@ -27,6 +28,13 @@ export const StaffEmployees: React.FC = () => {
       loadEmployees();
     }
   }, [user]);
+
+  // Set up real-time subscription for employees
+  useRealtimeEmployees(() => {
+    if (user) {
+      loadEmployees();
+    }
+  });
 
   const loadEmployees = async () => {
     if (!user?.email) return;
