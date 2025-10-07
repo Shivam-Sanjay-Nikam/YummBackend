@@ -1,7 +1,7 @@
 // Create employee - only accessible by organization_staff
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { createSuccessResponse, createErrorResponse, handleCors } from '../shared/utils.ts';
-import { authenticateUser, createAuthUser } from '../shared/auth.ts';
+import { createSuccessResponse, createErrorResponse, handleCors } from '../../shared/utils.ts';
+import { authenticateUser, createAuthUser } from '../../shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
