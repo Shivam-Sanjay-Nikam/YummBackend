@@ -1,7 +1,7 @@
 // Place order - only accessible by employee
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { createSuccessResponse, createErrorResponse, handleCors, validateUuid } from '../../shared/utils.ts';
-import { authenticateUser } from '../../shared/auth.ts';
+import { authenticateUserByEmail } from '../../shared/auth.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -49,20 +49,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    // Authenticate user
-    const authHeader = req.headers.get('Authorization');
-    const authResult = await authenticateUser(authHeader || '');
+    const body: PlaceOrderRequest & { user_email?: string } = await req.json();
+
+    // Authenticate user by email
+    if (!body.user_email) {
+      return createErrorResponse('User email is required', 400);
+    }
+
+    const authResult = await authenticateUserByEmail(body.user_email);
     
     if (!authResult.success || !authResult.user) {
-      return createErrorResponse('Authentication required', 401);
+      return createErrorResponse('Authentication failed', 401);
     }
 
     // Check if user is employee
     if (authResult.user.role !== 'employee') {
       return createErrorResponse('Only employees can place orders', 403);
     }
-
-    const body: PlaceOrderRequest = await req.json();
 
     // Validate required fields
     if (!body.vendor_id || !body.items || !Array.isArray(body.items) || body.items.length === 0) {

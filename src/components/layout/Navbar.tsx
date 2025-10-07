@@ -81,7 +81,7 @@ export const Navbar: React.FC = () => {
   // Set up real-time subscriptions for user and organization updates
   useRealtimeOrganizationStaff(() => {
     if (user?.email) {
-      handleUserUpdate();
+      loadOrgName();
     }
   });
 
@@ -147,63 +147,85 @@ export const Navbar: React.FC = () => {
       )}
       
       <nav className="bg-white border-b border-gray-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-3">
-            <img 
-              src="/YummLogo.png" 
-              alt="Yuum Logo" 
-              className="h-8 w-8 object-contain"
-            />
-            <div className="flex flex-col">
-              <span className="text-xl font-bold text-gray-900">Yuum</span>
-              {orgName && (
-                <span className="text-xs text-gray-500 flex items-center">
-                  <Building2 className="w-3 h-3 mr-1" />
-                  {orgName}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            {user.role === 'employee' && (
-              <button className="relative p-2 text-gray-700 hover:text-blue-500 transition-colors">
-                <ShoppingCart className="w-6 h-6" />
-                {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                    {totalItems}
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
+          <div className="flex justify-between items-center h-14 sm:h-16">
+            {/* Logo and org name - mobile optimized */}
+            <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+              <img 
+                src="/YummLogo.png" 
+                alt="Yuum Logo" 
+                className="h-6 w-6 sm:h-8 sm:w-8 object-contain flex-shrink-0"
+              />
+              <div className="flex flex-col min-w-0">
+                <span className="text-lg sm:text-xl font-bold text-gray-900 truncate">Yuum</span>
+                {orgName && (
+                  <span className="text-xs text-gray-500 flex items-center truncate">
+                    <Building2 className="w-3 h-3 mr-1 flex-shrink-0" />
+                    <span className="truncate">{orgName}</span>
                   </span>
                 )}
-              </button>
-            )}
-
-            <div className="flex items-center space-x-2 text-gray-700">
-              <User className="w-5 h-5" />
-              <span className="text-sm font-medium">{user.name || user.email}</span>
-              {user.role === 'employee' && user.balance !== undefined && (
-                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
-                  ₹{user.balance.toFixed(2)}
-                </span>
-              )}
+              </div>
             </div>
 
-            <button
-              onClick={handleLogout}
-              disabled={isLoggingOut}
-              className={`p-2 text-gray-700 hover:text-red-500 transition-all duration-200 ${
-                isLoggingOut 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : 'hover:bg-red-50 rounded-lg'
-              }`}
-              title={isLoggingOut ? "Logging out..." : "Logout"}
-            >
-              <LogOut className={`w-5 h-5 ${isLoggingOut ? 'animate-pulse' : ''}`} />
-            </button>
+            {/* Right side actions - mobile optimized */}
+            <div className="flex items-center space-x-1 sm:space-x-3 flex-shrink-0">
+              {/* Cart for employees - only show on mobile if there are items */}
+              {user.role === 'employee' && (
+                <button 
+                  className="relative p-2 text-gray-700 hover:text-blue-500 transition-colors"
+                  onClick={() => window.location.href = '/employee/cart'}
+                >
+                  <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6" />
+                  {totalItems > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {/* User info - simplified on mobile */}
+              <div className="hidden sm:flex items-center space-x-2 text-gray-700">
+                <User className="w-4 h-4" />
+                <span className="text-sm font-medium truncate max-w-32">
+                  {user.name || user.email}
+                </span>
+                {user.role === 'employee' && user.balance !== undefined && (
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                    ₹{user.balance.toFixed(2)}
+                  </span>
+                )}
+              </div>
+
+              {/* Mobile user info - compact */}
+              <div className="sm:hidden flex items-center space-x-1">
+                {user.role === 'employee' && user.balance !== undefined && (
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                    ₹{user.balance.toFixed(0)}
+                  </span>
+                )}
+                <div className="w-6 h-6 bg-gray-200 rounded-full flex items-center justify-center">
+                  <User className="w-3 h-3 text-gray-600" />
+                </div>
+              </div>
+
+              {/* Logout button */}
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className={`p-2 text-gray-700 hover:text-red-500 transition-all duration-200 ${
+                  isLoggingOut 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:bg-red-50 rounded-lg'
+                }`}
+                title={isLoggingOut ? "Logging out..." : "Logout"}
+              >
+                <LogOut className={`w-4 h-4 sm:w-5 sm:h-5 ${isLoggingOut ? 'animate-pulse' : ''}`} />
+              </button>
+            </div>
           </div>
         </div>
-      </div>
-    </nav>
+      </nav>
     </>
   );
 };

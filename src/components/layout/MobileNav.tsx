@@ -33,37 +33,37 @@ export const MobileNav: React.FC = () => {
 
   return (
     <>
-      {/* Mobile menu button */}
+      {/* Mobile menu button - more subtle design */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="lg:hidden fixed bottom-6 right-6 z-50 bg-gradient-to-r from-blue-600 to-blue-700 text-white p-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-200 transform hover:scale-105 active:scale-95"
+        className="lg:hidden fixed bottom-4 right-4 z-50 bg-white text-gray-700 p-3 rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-all duration-200 transform hover:scale-105 active:scale-95"
         aria-label="Open mobile menu"
       >
-        {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
       {/* Mobile menu overlay */}
       {isOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50 backdrop-blur-sm" onClick={() => setIsOpen(false)}>
-          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl shadow-2xl transform transition-transform duration-300 ease-in-out max-h-[80vh] overflow-hidden">
+        <div className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-30 backdrop-blur-sm" onClick={() => setIsOpen(false)}>
+          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl transform transition-transform duration-300 ease-in-out max-h-[75vh] overflow-hidden">
             {/* Drag handle */}
-            <div className="flex justify-center pt-3 pb-2">
-              <div className="w-12 h-1 bg-gray-300 rounded-full"></div>
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-8 h-1 bg-gray-300 rounded-full"></div>
             </div>
             
-            <div className="p-6 pb-8 overflow-y-auto max-h-[calc(80vh-2rem)]">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Menu</h2>
+            <div className="p-4 pb-6 overflow-y-auto max-h-[calc(75vh-1rem)]">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
+                  className="p-1.5 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors"
                   aria-label="Close menu"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <nav className="space-y-3">
+              <nav className="space-y-2">
                 {links.map((link) => {
                   const Icon = link.icon;
                   const isActive = window.location.pathname === link.href;
@@ -73,16 +73,16 @@ export const MobileNav: React.FC = () => {
                       key={link.href}
                       href={link.href}
                       onClick={() => setIsOpen(false)}
-                      className={`flex items-center space-x-4 px-4 py-4 rounded-xl transition-all duration-200 ${
+                      className={`flex items-center space-x-3 px-3 py-3 rounded-lg transition-all duration-200 ${
                         isActive
-                          ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-700 font-semibold shadow-sm'
+                          ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
                           : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${isActive ? 'bg-blue-200' : 'bg-gray-100'}`}>
-                        <Icon className="w-5 h-5" />
+                      <div className={`p-1.5 rounded-md ${isActive ? 'bg-blue-100' : 'bg-gray-100'}`}>
+                        <Icon className="w-4 h-4" />
                       </div>
-                      <span className="text-base">{link.name}</span>
+                      <span className="text-sm font-medium">{link.name}</span>
                     </a>
                   );
                 })}

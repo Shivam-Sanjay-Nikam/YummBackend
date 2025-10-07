@@ -141,33 +141,39 @@ export const EmployeeOrders: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
-        <p className="text-gray-600 mt-1">Track your order history</p>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="px-1">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Orders</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Track your order history</p>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {orders.map((order) => (
-          <Card key={order.id}>
-            <CardBody>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">
+          <Card key={order.id} className="overflow-hidden">
+            <CardBody className="p-4 sm:p-6">
+              {/* Mobile-first header layout */}
+              <div className="space-y-3 sm:space-y-0 sm:flex sm:items-start sm:justify-between">
+                {/* Order info - stacked on mobile, side-by-side on desktop */}
+                <div className="space-y-2 sm:space-y-1">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-3 space-y-2 sm:space-y-0">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900">
                       Order #{order.id.slice(0, 8)}
                     </h3>
-                    {getStatusBadge(order.status)}
+                    <div className="flex-shrink-0">
+                      {getStatusBadge(order.status)}
+                    </div>
                   </div>
                   <p className="text-sm text-gray-600">
                     {order.vendors?.name || 'Unknown Vendor'}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500">
                     {new Date(order.created_at).toLocaleString()}
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="text-2xl font-bold text-green-600">
+
+                {/* Price and cancel button - stacked on mobile */}
+                <div className="flex flex-col sm:items-end space-y-2 sm:space-y-0">
+                  <p className="text-xl sm:text-2xl font-bold text-green-600">
                     ₹{order.total_amount.toFixed(2)}
                   </p>
                   {(order.status === 'placed' || order.status === 'preparing' || order.status === 'prepared') && (
@@ -176,7 +182,7 @@ export const EmployeeOrders: React.FC = () => {
                       variant={canCancelOrder(order) ? "danger" : "secondary"}
                       onClick={() => canCancelOrder(order) && handleCancelOrder(order.id)}
                       disabled={!canCancelOrder(order)}
-                      className="mt-2"
+                      className="w-full sm:w-auto text-xs sm:text-sm"
                       title={!canCancelOrder(order) ? 
                         'Order cannot be cancelled in current status' : 
                         'Request cancellation for this order'
@@ -188,15 +194,21 @@ export const EmployeeOrders: React.FC = () => {
                 </div>
               </div>
 
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Order Items</h4>
+              {/* Order items - mobile optimized */}
+              <div className="border-t border-gray-200 pt-3 sm:pt-4 mt-3 sm:mt-4">
+                <h4 className="text-sm font-medium text-gray-700 mb-2 sm:mb-3">Order Items</h4>
                 <div className="space-y-2">
                   {order.order_items?.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-gray-600">
-                        {item.menu_items?.name || 'Unknown Item'} x{item.quantity}
+                    <div key={item.id} className="flex justify-between items-center text-sm bg-gray-50 rounded-lg p-2 sm:p-3">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-gray-700 font-medium block truncate">
+                          {item.menu_items?.name || 'Unknown Item'}
+                        </span>
+                        <span className="text-xs text-gray-500">Qty: {item.quantity}</span>
+                      </div>
+                      <span className="font-semibold text-green-600 ml-2 flex-shrink-0">
+                        ₹{item.total_cost.toFixed(2)}
                       </span>
-                      <span className="font-medium">₹{item.total_cost.toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
@@ -208,11 +220,14 @@ export const EmployeeOrders: React.FC = () => {
 
       {orders.length === 0 && (
         <Card>
-          <CardBody className="text-center py-12">
-            <ShoppingBag className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <CardBody className="text-center py-8 sm:py-12 px-4">
+            <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders yet</h3>
-            <p className="text-gray-500 mb-6">Start ordering from vendors</p>
-            <Button onClick={() => (window.location.href = '/employee/dashboard')}>
+            <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">Start ordering from vendors</p>
+            <Button 
+              onClick={() => (window.location.href = '/employee/dashboard')}
+              className="w-full sm:w-auto"
+            >
               Browse Vendors
             </Button>
           </CardBody>
