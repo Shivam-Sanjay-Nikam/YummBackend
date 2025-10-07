@@ -891,9 +891,21 @@ export const api = {
         if (vendor) {
           query = query.eq('vendor_id', vendor.id);
         }
+      } else if (userRole === 'organization_staff') {
+        // Get organization staff's org_id and filter orders by organization
+        const { data: staffRecord } = await supabase
+          .from('organization_staff')
+          .select('org_id')
+          .eq('email', userEmail)
+          .single();
+        
+        if (staffRecord) {
+          // Filter orders by organization through employees and vendors
+          query = query.or(`employees.org_id.eq.${staffRecord.org_id},vendors.org_id.eq.${staffRecord.org_id}`);
+        }
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('created_at', { ascending: true });
       return { data, error };
     },
 
