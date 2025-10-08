@@ -76,6 +76,9 @@ export const VendorOrders: React.FC = () => {
   const [deletingOrder, setDeletingOrder] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ orderId: string; orderNumber: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled' | 'cancel_requested'>('all');
+  const [currentView, setCurrentView] = useState<'dashboard' | 'orders'>('dashboard');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [ordersPerPage] = useState(10);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isTabLoading, setIsTabLoading] = useState(false);
   const [isSearchLoading, setIsSearchLoading] = useState(false);
@@ -356,6 +359,18 @@ export const VendorOrders: React.FC = () => {
     );
   }, [orders, activeTab, debouncedSearchTerm, state.dateFrom, state.dateTo]);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * ordersPerPage;
+    return filteredOrders.slice(startIndex, startIndex + ordersPerPage);
+  }, [filteredOrders, currentPage, ordersPerPage]);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearchTerm, state.dateFrom, state.dateTo]);
+
 
 
   if (loading) {
@@ -396,20 +411,34 @@ export const VendorOrders: React.FC = () => {
             <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your orders efficiently</p>
           </div>
           <div className="mt-4 sm:mt-0">
-            <Button
-              onClick={handleViewAllFeedback}
-              variant="outline"
-              className="flex items-center space-x-2"
-            >
-              <MessageSquare className="w-4 h-4" />
-              <span>{showAllFeedback ? 'Hide All Feedback' : 'View All Feedback'}</span>
-            </Button>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setCurrentView('dashboard')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'dashboard'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Dashboard
+              </button>
+              <button
+                onClick={() => setCurrentView('orders')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'orders'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                All Orders
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Active Orders Quick View */}
-      {activeOrders.length > 0 && (
+      {/* Active Orders Quick View - Dashboard Only */}
+      {currentView === 'dashboard' && activeOrders.length > 0 && (
         <Card>
           <CardBody className="p-4">
             <div className="flex items-center justify-between mb-4">
@@ -423,7 +452,7 @@ export const VendorOrders: React.FC = () => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {activeOrders.slice(0, 6).map((order) => (
+              {activeOrders.map((order) => (
                 <div key={order.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:scale-[1.02]">
                   <div className="flex items-start justify-between mb-2">
                     <div>
@@ -483,22 +512,21 @@ export const VendorOrders: React.FC = () => {
               ))}
             </div>
             
-            {activeOrders.length > 6 && (
-              <div className="mt-4 text-center">
-                <button
-                  onClick={() => handleTabChange('all')}
-                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  View all {activeOrders.length} active orders →
-                </button>
-              </div>
-            )}
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => setCurrentView('orders')}
+                className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+              >
+                View all {orders.length} orders →
+              </button>
+            </div>
           </CardBody>
         </Card>
       )}
 
-      {/* Search and Filter Bar */}
-      <FilterBar onClear={clearAllFilters} showClearButton={hasActiveFilters}>
+      {/* Search and Filter Bar - Orders View Only */}
+      {currentView === 'orders' && (
+        <FilterBar onClear={clearAllFilters} showClearButton={hasActiveFilters}>
         <div className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-5">
@@ -535,7 +563,8 @@ export const VendorOrders: React.FC = () => {
         </div>
       </FilterBar>
 
-      {/* Mobile Tab Navigation */}
+      {/* Mobile Tab Navigation - Orders View Only */}
+      {currentView === 'orders' && (
       <div className="sm:hidden">
         {/* Mobile Tab Header */}
         <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
@@ -620,7 +649,8 @@ export const VendorOrders: React.FC = () => {
         )}
       </div>
 
-      {/* Desktop Tab Navigation */}
+      {/* Desktop Tab Navigation - Orders View Only */}
+      {currentView === 'orders' && (
       <div className="hidden sm:block border-b border-gray-200">
         <nav className="-mb-px flex space-x-4 lg:space-x-8">
           {[
@@ -675,6 +705,7 @@ export const VendorOrders: React.FC = () => {
           </CardBody>
         </Card>
       )}
+      )}
 
       {/* Orders Table - Mobile Friendly */}
       <div className="space-y-4">
@@ -682,7 +713,7 @@ export const VendorOrders: React.FC = () => {
           <CardBody className="p-2 sm:p-4 lg:p-6">
             {/* Mobile Card Layout */}
             <div className="block sm:hidden space-y-3">
-              {filteredOrders.map((order) => (
+              {paginatedOrders.map((order) => (
                 <div key={order.id} className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
@@ -797,7 +828,7 @@ export const VendorOrders: React.FC = () => {
                 </div>
               )}
               
-              {filteredOrders.map((order) => (
+              {paginatedOrders.map((order) => (
                 <Card key={order.id} className="hover:shadow-md transition-all duration-300 transform hover:scale-[1.02]">
                   <CardBody className="p-4">
                     <div className="flex items-start justify-between mb-3">
@@ -944,6 +975,68 @@ export const VendorOrders: React.FC = () => {
             </div>
           </CardBody>
         </Card>
+
+        {/* Pagination Controls */}
+        {filteredOrders.length > ordersPerPage && (
+          <Card>
+            <CardBody className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Showing {((currentPage - 1) * ordersPerPage) + 1} to {Math.min(currentPage * ordersPerPage, filteredOrders.length)} of {filteredOrders.length} orders
+                </div>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex items-center space-x-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => setCurrentPage(pageNum)}
+                          className={`px-3 py-1 text-sm rounded-md ${
+                            currentPage === pageNum
+                              ? 'bg-blue-500 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+                    {totalPages > 5 && (
+                      <>
+                        <span className="text-gray-400">...</span>
+                        <button
+                          onClick={() => setCurrentPage(totalPages)}
+                          className={`px-3 py-1 text-sm rounded-md ${
+                            currentPage === totalPages
+                              ? 'bg-blue-500 text-white'
+                              : 'border border-gray-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          {totalPages}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        )}
 
         {filteredOrders.length === 0 && (
           <Card>
