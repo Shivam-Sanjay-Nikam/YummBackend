@@ -5,7 +5,6 @@ import { Badge } from '../../components/ui/Badge';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { DateRangeFilter } from '../../components/ui/DateRangeFilter';
 import { FilterBar } from '../../components/ui/FilterBar';
-import { FeedbackDisplay } from '../../components/ui/FeedbackDisplay';
 import { Clock, CheckCircle, XCircle, List, ChevronDown, Trash2, Menu, X, MessageSquare } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
@@ -145,10 +144,11 @@ export const VendorOrders: React.FC = () => {
     setShowAllFeedback(!showAllFeedback);
     if (!showAllFeedback && allFeedback.length === 0) {
       try {
-        const response = await api.feedback.get();
-        if (response.data?.data?.feedback) {
-          setAllFeedback(response.data.data.feedback);
-        }
+        // const response = await api.feedback.get();
+        // if (response.data?.data?.feedback) {
+        //   setAllFeedback(response.data.data.feedback);
+        // }
+        setAllFeedback([]); // No feedback functionality
       } catch (error) {
         console.error('Error loading all feedback:', error);
         toast.error('Failed to load feedback');
@@ -186,23 +186,25 @@ export const VendorOrders: React.FC = () => {
     }
   }, [user?.email]);
 
-  const loadAllFeedback = useCallback(async (orders: Order[]) => {
+  const loadAllFeedback = useCallback(async (_orders: Order[]) => {
     if (!user?.email || feedbackLoaded) return;
     
     try {
-      const orderIds = orders.map(order => order.id);
-      const response = await api.feedback.get();
+      // const orderIds = orders.map(order => order.id);
+      // const response = await api.feedback.get();
       
-      if (response.data?.data?.feedback) {
-        const feedbackMap: Record<string, any> = {};
-        response.data.data.feedback.forEach((feedback: any) => {
-          if (orderIds.includes(feedback.order_id)) {
-            feedbackMap[feedback.order_id] = feedback;
-          }
-        });
-        setOrderFeedback(feedbackMap);
-        setFeedbackLoaded(true);
-      }
+      // if (response.data?.data?.feedback) {
+      //   const feedbackMap: Record<string, any> = {};
+      //   response.data.data.feedback.forEach((feedback: any) => {
+      //     if (orderIds.includes(feedback.order_id)) {
+      //       feedbackMap[feedback.order_id] = feedback;
+      //     }
+      //   });
+      //   setOrderFeedback(feedbackMap);
+      //   setFeedbackLoaded(true);
+      // }
+      setOrderFeedback({}); // No feedback functionality
+      setFeedbackLoaded(true);
     } catch (error) {
       console.error('Error loading feedback:', error);
     }
@@ -925,11 +927,9 @@ export const VendorOrders: React.FC = () => {
                       <div className="border-t border-gray-200 pt-4 mt-4">
                         <h4 className="text-sm font-medium text-gray-700 mb-3">Feedback</h4>
                         {orderFeedback[order.id] ? (
-                          <FeedbackDisplay
-                            feedback={orderFeedback[order.id]}
-                            showUserDetails={true} // Vendors can see user details if shared
-                            className="border border-gray-200 rounded-lg"
-                          />
+                          <div className="border border-gray-200 rounded-lg p-4">
+                            <p className="text-sm text-gray-600">Feedback functionality has been removed.</p>
+                          </div>
                         ) : (
                           <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
                             <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
@@ -984,12 +984,9 @@ export const VendorOrders: React.FC = () => {
             {allFeedback.length > 0 ? (
               <div className="space-y-4">
                 {allFeedback.map((feedback) => (
-                  <FeedbackDisplay
-                    key={feedback.id}
-                    feedback={feedback}
-                    showUserDetails={true} // Vendors can see user details if shared
-                    className="border border-gray-200 rounded-lg"
-                  />
+                  <div key={feedback.id} className="border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-600">Feedback functionality has been removed.</p>
+                  </div>
                 ))}
               </div>
             ) : (
