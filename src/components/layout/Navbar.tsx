@@ -191,11 +191,7 @@ export const Navbar: React.FC = () => {
                   {user.name || user.email}
                 </span>
                 {user.role === 'employee' && user.balance !== undefined && (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    user.balance < 0 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                     ₹{user.balance.toFixed(2)}
                   </span>
                 )}
@@ -204,11 +200,7 @@ export const Navbar: React.FC = () => {
               {/* Mobile user info - compact */}
               <div className="sm:hidden flex items-center space-x-1">
                 {user.role === 'employee' && user.balance !== undefined && (
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    user.balance < 0 
-                      ? 'bg-red-100 text-red-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
                     ₹{user.balance.toFixed(0)}
                   </span>
                 )}
