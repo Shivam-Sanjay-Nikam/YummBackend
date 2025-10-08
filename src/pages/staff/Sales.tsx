@@ -136,7 +136,6 @@ export const StaffSales: React.FC = () => {
     loadSalesData();
   };
 
-    try {
   const generateReport = () => {
     const allTransactions = salesData.flatMap(vendor => vendor.transactions);
     

@@ -15,7 +15,6 @@ export const EmployeeOrders: React.FC = () => {
   const { user, refreshUser } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
