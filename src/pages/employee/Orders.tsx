@@ -2,24 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { ShoppingBag, Clock, CheckCircle, XCircle, MessageSquare } from 'lucide-react';
+import { ShoppingBag, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { confirmManager } from '../../components/ui/ConfirmDialog';
 import { useRealtimeOrders } from '../../hooks/useRealtimeData';
-import { useRealtimeBalance } from '../../hooks/useRealtimeBalance';
-import { FeedbackForm } from '../../components/ui/FeedbackForm';
-import { FeedbackDisplay } from '../../components/ui/FeedbackDisplay';
 import toast from 'react-hot-toast';
 
 export const EmployeeOrders: React.FC = () => {
-  const { user, refreshUser } = useAuthStore();
+  const { user } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
-  const [orderFeedback, setOrderFeedback] = useState<Record<string, any>>({});
-  const [isSubmittingFeedback, setIsSubmittingFeedback] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -30,12 +24,9 @@ export const EmployeeOrders: React.FC = () => {
   // Set up real-time subscription for orders
   useRealtimeOrders(() => {
     if (user) {
-      loadOrders(); // This will also sync balance
+      loadOrders();
     }
   });
-
-  // Set up real-time subscription for balance updates
-  useRealtimeBalance();
 
   const loadOrders = async () => {
     if (!user?.email) return;
@@ -44,54 +35,11 @@ export const EmployeeOrders: React.FC = () => {
       const { data, error } = await api.data.getOrders('employee', user.email);
       if (error) throw error;
       setOrders(data || []);
-      
-      // Refresh user data to get updated balance
-      await refreshUser();
-      
-      // Sync employee balance after loading orders
-      await syncEmployeeBalance();
     } catch (error: any) {
       toast.error('Failed to load orders');
       console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const syncEmployeeBalance = async () => {
-    if (!user?.email) return;
-    
-    try {
-      // Get current employee data
-      const { data: employees, error: employeeError } = await api.data.getEmployees(user.email);
-      if (employeeError || !employees || employees.length === 0) {
-        console.error('Failed to get employee data for balance sync:', employeeError);
-        return;
-      }
-      
-      const employee = employees[0]; // Get the first (and should be only) employee
-
-      // Calculate total amount from "given" orders
-      const givenOrdersTotal = orders
-        .filter(order => order.status === 'given')
-        .reduce((total, order) => total + parseFloat(order.total_amount.toString()), 0);
-
-      // Calculate current balance (assuming starting balance was 0 or some initial amount)
-      // This is a simplified calculation - you might want to adjust based on your business logic
-      const currentBalance = employee.balance;
-      
-      console.log('Employee balance sync:', {
-        currentBalance,
-        givenOrdersTotal,
-        ordersCount: orders.length,
-        givenOrdersCount: orders.filter(o => o.status === 'given').length
-      });
-
-      // Note: The actual balance update happens in the update_order_status function
-      // This is just for logging and verification purposes
-      
-    } catch (error: any) {
-      console.error('Error syncing employee balance:', error);
     }
   };
 
@@ -141,137 +89,6 @@ export const EmployeeOrders: React.FC = () => {
       }
     }
   };
-
-  // Feedback handling functions
-  const handleToggleOrderExpansion = async (orderId: string) => {
-    if (expandedOrder === orderId) {
-      setExpandedOrder(null);
-    } else {
-      setExpandedOrder(orderId);
-      
-      // Load feedback for this order if not already loaded
-      if (!orderFeedback[orderId]) {
-        try {
-          const response = await api.feedback.get({ order_id: orderId });
-          if (response.data?.data?.feedback?.length > 0) {
-            setOrderFeedback(prev => ({
-              ...prev,
-              [orderId]: response.data.data.feedback[0]
-            }));
-          }
-        } catch (error) {
-          console.error('Error loading feedback:', error);
-        }
-      }
-    }
-  };
-
-
-  const handleSubmitFeedback = async (orderId: string, feedback: {
-    rating: number;
-    comment: string;
-    share_user_details: boolean;
-  }) => {
-    setIsSubmittingFeedback(true);
-    console.log('🚀 Starting feedback submission...');
-    console.log('Order ID:', orderId);
-    console.log('Feedback data:', feedback);
-    
-    try {
-      // Check if user is authenticated
-      const { user } = useAuthStore.getState();
-      console.log('Current user:', user);
-      
-      if (!user?.email) {
-        throw new Error('User not authenticated');
-      }
-
-      console.log('📡 Making API call to submit_feedback...');
-      const response = await api.feedback.submit({
-        order_id: orderId,
-        ...feedback
-      });
-
-      console.log('📥 Full API response:', response);
-      console.log('Response status:', response?.status);
-      console.log('Response data:', response?.data);
-
-      // More comprehensive success checking
-      const isSuccess = response?.status >= 200 && response?.status < 300;
-      const hasSuccessFlag = response?.data?.success === true;
-      const hasData = response?.data?.data;
-      
-      console.log('Success checks:', {
-        isSuccess,
-        hasSuccessFlag,
-        hasData,
-        status: response?.status
-      });
-
-      if (!isSuccess && !hasSuccessFlag) {
-        const errorMsg = `HTTP ${response?.status}` || 'Unknown server response';
-        console.error('❌ API call failed:', errorMsg);
-        throw new Error(errorMsg);
-      }
-
-      // Try multiple ways to extract feedback data
-      let feedbackData = null;
-      
-      if (response?.data?.data?.feedback) {
-        feedbackData = Array.isArray(response.data.data.feedback) 
-          ? response.data.data.feedback[0] 
-          : response.data.data.feedback;
-        console.log('✅ Found feedback in response.data.data.feedback:', feedbackData);
-      } else if (response?.data?.data) {
-        feedbackData = response.data.data;
-        console.log('✅ Found feedback in response.data.data:', feedbackData);
-      } else if (response?.data) {
-        feedbackData = response.data;
-        console.log('✅ Using response.data as feedback:', feedbackData);
-      }
-
-      if (feedbackData) {
-        console.log('💾 Updating order feedback state...');
-        setOrderFeedback(prev => ({ ...prev, [orderId]: feedbackData }));
-        console.log('✅ Feedback state updated successfully');
-      } else {
-        console.warn('⚠️ No feedback data in response, creating fallback...');
-        const fallbackFeedback = {
-          id: `temp_${Date.now()}`,
-          order_id: orderId,
-          rating: feedback.rating,
-          comment: feedback.comment,
-          share_user_details: feedback.share_user_details,
-          created_at: new Date().toISOString(),
-          submitted_at: new Date().toISOString()
-        };
-        setOrderFeedback(prev => ({ ...prev, [orderId]: fallbackFeedback }));
-        console.log('✅ Fallback feedback created:', fallbackFeedback);
-      }
-
-      toast.success('Feedback submitted successfully!');
-      console.log('🎉 Feedback submission completed successfully');
-      
-    } catch (err: any) {
-      console.error('❌ Error submitting feedback:', err);
-      console.error('Error details:', {
-        message: err.message,
-        response: err.response?.data,
-        status: err.response?.status,
-        stack: err.stack
-      });
-      
-      const errorMessage = err.response?.data?.error ||
-                           err.response?.data?.message ||
-                           err.message ||
-                           'Failed to submit feedback';
-      toast.error(errorMessage);
-    } finally {
-      setIsSubmittingFeedback(false);
-      console.log('🏁 Feedback submission process completed');
-    }
-  };
-
 
   const canCancelOrder = (order: Order) => {
     // Check if order status allows cancellation
@@ -326,12 +143,8 @@ export const EmployeeOrders: React.FC = () => {
   return (
     <div className="space-y-4 sm:space-y-6">
       <div className="px-1">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Orders</h1>
-            <p className="text-sm sm:text-base text-gray-600 mt-1">Track your order history</p>
-          </div>
-        </div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Orders</h1>
+        <p className="text-sm sm:text-base text-gray-600 mt-1">Track your order history</p>
       </div>
 
       <div className="space-y-3 sm:space-y-4">
@@ -363,37 +176,21 @@ export const EmployeeOrders: React.FC = () => {
                   <p className="text-xl sm:text-2xl font-bold text-green-600">
                     ₹{order.total_amount.toFixed(2)}
                   </p>
-                  <div className="flex space-x-2">
-                    {(order.status === 'placed' || order.status === 'preparing' || order.status === 'prepared') && (
-                      <Button
-                        size="sm"
-                        variant={canCancelOrder(order) ? "danger" : "secondary"}
-                        onClick={() => canCancelOrder(order) && handleCancelOrder(order.id)}
-                        disabled={!canCancelOrder(order)}
-                        className="flex-1 sm:flex-none text-xs sm:text-sm"
-                        title={!canCancelOrder(order) ? 
-                          'Order cannot be cancelled in current status' : 
-                          'Request cancellation for this order'
-                        }
-                      >
-                        {getCancelButtonText(order)}
-                      </Button>
-                    )}
-                    
-                    {/* Feedback Button */}
-                    <button
-                      type="button"
-                      onClick={() => handleToggleOrderExpansion(order.id)}
-                      className={`p-2 transition-colors border rounded-md ${
-                        expandedOrder === order.id
-                          ? 'text-blue-500 border-blue-500 bg-blue-50'
-                          : 'text-gray-400 hover:text-blue-500 border-gray-300 hover:border-blue-500'
-                      }`}
-                      title={expandedOrder === order.id ? "Hide feedback" : "View/Add feedback"}
+                  {(order.status === 'placed' || order.status === 'preparing' || order.status === 'prepared') && (
+                    <Button
+                      size="sm"
+                      variant={canCancelOrder(order) ? "danger" : "secondary"}
+                      onClick={() => canCancelOrder(order) && handleCancelOrder(order.id)}
+                      disabled={!canCancelOrder(order)}
+                      className="w-full sm:w-auto text-xs sm:text-sm"
+                      title={!canCancelOrder(order) ? 
+                        'Order cannot be cancelled in current status' : 
+                        'Request cancellation for this order'
+                      }
                     >
-                      <MessageSquare className="w-4 h-4" />
-                    </button>
-                  </div>
+                      {getCancelButtonText(order)}
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -416,34 +213,10 @@ export const EmployeeOrders: React.FC = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Feedback Section - Expandable */}
-              {expandedOrder === order.id && (
-                <div className="border-t border-gray-200 pt-4 mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-3">Feedback</h4>
-                  {orderFeedback[order.id] ? (
-                    <FeedbackDisplay
-                      feedback={orderFeedback[order.id]}
-                      showUserDetails={false}
-                      className="border border-gray-200 rounded-lg"
-                    />
-                  ) : (
-                    <div className="border border-gray-200 rounded-lg p-4">
-                      <FeedbackForm
-                        orderId={order.id}
-                        onSubmit={(feedback) => handleSubmitFeedback(order.id, feedback)}
-                        onCancel={() => setExpandedOrder(null)}
-                        isLoading={isSubmittingFeedback}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
             </CardBody>
           </Card>
         ))}
       </div>
-
 
       {orders.length === 0 && (
         <Card>
@@ -460,7 +233,6 @@ export const EmployeeOrders: React.FC = () => {
           </CardBody>
         </Card>
       )}
-
     </div>
   );
 };

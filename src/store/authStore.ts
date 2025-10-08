@@ -10,7 +10,6 @@ interface AuthState {
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   refreshUser: () => Promise<void>;
-  updateUserBalance: (newBalance: number) => void;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -100,42 +99,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       // Import the API here to avoid circular dependencies
       const { api } = await import('../services/api');
+      const { data, error } = await api.auth.login(user.email, 'dummy'); // This will fail but we can get user data
       
-      // Get fresh user data from database
-      if (user.role === 'employee') {
-        const { data: employees, error } = await api.data.getEmployees(user.email);
-        if (!error && employees && employees.length > 0) {
-          const updatedUser = { ...user, balance: employees[0].balance };
-          set({ user: updatedUser });
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-      } else if (user.role === 'organization_staff') {
-        const { data: staff, error } = await api.data.getOrganizationStaff(user.email);
-        if (!error && staff && staff.length > 0) {
-          const updatedUser = { ...user, name: staff[0].name };
-          set({ user: updatedUser });
-          localStorage.setItem('user', JSON.stringify(updatedUser));
-        }
-      } else if (user.role === 'vendor') {
-        const { data: vendors, error } = await api.data.getVendors(user.email);
-        if (!error && vendors && vendors.length > 0) {
-          const updatedUser = { ...user, name: vendors[0].name };
-          set({ user: updatedUser });
-          localStorage.setItem('user', JSON.stringify(updatedUser));
+      // For now, just re-validate the stored user
+      const storedUser = localStorage.getItem('user');
+      if (storedUser) {
+        const parsedUser = JSON.parse(storedUser);
+        if (parsedUser && parsedUser.id && parsedUser.email && parsedUser.role) {
+          set({ user: parsedUser });
+        } else {
+          get().logout();
         }
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
       // If refresh fails, keep the current user (don't log out)
-    }
-  },
-
-  updateUserBalance: (newBalance: number) => {
-    const { user } = get();
-    if (user && user.role === 'employee') {
-      const updatedUser = { ...user, balance: newBalance };
-      set({ user: updatedUser });
-      localStorage.setItem('user', JSON.stringify(updatedUser));
     }
   },
 }));

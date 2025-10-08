@@ -1,18 +1,14 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { Card, CardBody } from '../../components/ui/Card';
+import React, { useEffect, useState } from 'react';
+import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { SearchInput } from '../../components/ui/SearchInput';
-import { SortDropdown } from '../../components/ui/SortDropdown';
-import { FilterBar } from '../../components/ui/FilterBar';
-import { Plus, IndianRupee, Users, Edit2, Trash2, Upload, FileSpreadsheet, Key } from 'lucide-react';
+import { Plus, IndianRupee, Users, Edit2, Trash2, MoreVertical, Upload, FileSpreadsheet, Key } from 'lucide-react';
 import { Employee } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeEmployees } from '../../hooks/useRealtimeData';
-import { useSearchAndFilter } from '../../hooks/useSearchAndFilter';
 import toast from 'react-hot-toast';
 
 export const StaffEmployees: React.FC = () => {
@@ -26,12 +22,6 @@ export const StaffEmployees: React.FC = () => {
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-
-  // Search and filter state
-  const { state, updateFilter, clearAllFilters, hasActiveFilters } = useSearchAndFilter({
-    initialSortBy: 'name',
-    initialSortDirection: 'asc'
-  });
 
   useEffect(() => {
     if (user) {
@@ -97,73 +87,6 @@ export const StaffEmployees: React.FC = () => {
     }
   };
 
-  // Filter and sort employees
-  const filteredAndSortedEmployees = useMemo(() => {
-    let filtered = [...employees];
-
-    // Search filter
-    if (state.searchTerm) {
-      const searchLower = state.searchTerm.toLowerCase();
-      filtered = filtered.filter(employee => 
-        employee.name?.toLowerCase().includes(searchLower) ||
-        employee.email?.toLowerCase().includes(searchLower) ||
-        employee.special_number?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // Sort
-    if (state.sortBy) {
-      filtered.sort((a, b) => {
-        let aValue: any, bValue: any;
-        
-        switch (state.sortBy) {
-          case 'name':
-            aValue = a.name || '';
-            bValue = b.name || '';
-            break;
-          case 'email':
-            aValue = a.email || '';
-            bValue = b.email || '';
-            break;
-          case 'balance':
-            aValue = a.balance || 0;
-            bValue = b.balance || 0;
-            break;
-          case 'created_at':
-            aValue = new Date(a.created_at).getTime();
-            bValue = new Date(b.created_at).getTime();
-            break;
-          default:
-            return 0;
-        }
-
-        if (aValue < bValue) return state.sortDirection === 'asc' ? -1 : 1;
-        if (aValue > bValue) return state.sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      });
-    }
-
-    return filtered;
-  }, [employees, state.searchTerm, state.sortBy, state.sortDirection]);
-
-  // Sort options
-  const sortOptions = [
-    { value: 'name', label: 'Name (A-Z)', direction: 'asc' as const },
-    { value: 'name-desc', label: 'Name (Z-A)', direction: 'desc' as const },
-    { value: 'balance-desc', label: 'Dues (High to Low)', direction: 'desc' as const }
-  ];
-
-  const handleSortChange = (value: string) => {
-    if (value.includes('-desc')) {
-      const sortBy = value.replace('-desc', '');
-      updateFilter('sortBy', sortBy);
-      updateFilter('sortDirection', 'desc');
-    } else {
-      updateFilter('sortBy', value);
-      updateFilter('sortDirection', 'asc');
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -198,36 +121,6 @@ export const StaffEmployees: React.FC = () => {
         </div>
       </div>
 
-      {/* Search and Filter Bar */}
-      <FilterBar onClear={clearAllFilters} showClearButton={hasActiveFilters}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <SearchInput
-              placeholder="Search by name, email, or ID..."
-              value={state.searchTerm}
-              onChange={(value) => updateFilter('searchTerm', value)}
-              size="md"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
-            <SortDropdown
-              options={sortOptions}
-              value={`${state.sortBy}${state.sortDirection === 'desc' ? '-desc' : ''}`}
-              onChange={handleSortChange}
-              placeholder="↑↓ Sort employees..."
-              size="md"
-            />
-          </div>
-          <div className="flex items-end">
-            <div className="text-sm text-gray-500">
-              Showing {filteredAndSortedEmployees.length} of {employees.length} employees
-            </div>
-          </div>
-        </div>
-      </FilterBar>
-
       {/* Desktop Table View */}
       <div className="hidden lg:block">
         <Card>
@@ -251,7 +144,7 @@ export const StaffEmployees: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredAndSortedEmployees.map((employee) => (
+                  {employees.map((employee) => (
                     <tr key={employee.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{employee.name}</div>
@@ -315,7 +208,7 @@ export const StaffEmployees: React.FC = () => {
 
       {/* Mobile Card View */}
       <div className="lg:hidden space-y-4">
-        {filteredAndSortedEmployees.map((employee) => (
+        {employees.map((employee) => (
           <Card key={employee.id} className="hover:shadow-md transition-shadow">
             <CardBody className="p-4">
               <div className="flex items-start justify-between mb-3">
@@ -377,15 +270,6 @@ export const StaffEmployees: React.FC = () => {
             </CardBody>
           </Card>
         ))}
-        
-        {filteredAndSortedEmployees.length === 0 && employees.length > 0 && (
-          <Card>
-            <CardBody className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No employees found matching your search criteria.</p>
-            </CardBody>
-          </Card>
-        )}
         
         {employees.length === 0 && (
           <Card>
