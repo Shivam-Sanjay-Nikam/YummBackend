@@ -64,6 +64,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
           <h3 className="text-lg font-semibold text-gray-900 mb-2 pr-16">
             {item.name}
           </h3>
+          
+          {item.description && (
+            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+              {item.description}
+            </p>
+          )}
 
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
