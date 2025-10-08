@@ -206,14 +206,6 @@ export const StaffSales: React.FC = () => {
         </div>
         <div className="mt-4 sm:mt-0 flex space-x-2">
           <Button
-            onClick={() => {
-              }
-            }}
-            variant="outline"
-            className="flex items-center space-x-2"
-          >
-          </Button>
-          <Button
             onClick={generateReport}
             className="flex items-center space-x-2"
             disabled={salesData.length === 0}
