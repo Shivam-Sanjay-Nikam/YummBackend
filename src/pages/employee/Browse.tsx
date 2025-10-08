@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Store, ShoppingCart, Plus } from 'lucide-react';
+import { MenuItemCard } from '../../components/ui/MenuItemCard';
+import { CartSidebar } from '../../components/ui/CartSidebar';
+import { Store, ShoppingCart, Plus, ArrowLeft } from 'lucide-react';
 import { Vendor, MenuItem } from '../../types';
 import { api } from '../../services/api';
 import { useCartStore } from '../../store/cartStore';
@@ -16,7 +18,8 @@ export const EmployeeBrowse: React.FC = () => {
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const addItem = useCartStore((state) => state.addItem);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { getTotalItems } = useCartStore();
 
   useEffect(() => {
     if (user) {
@@ -64,9 +67,17 @@ export const EmployeeBrowse: React.FC = () => {
     }
   };
 
-  const handleAddToCart = (item: MenuItem) => {
-    addItem(item);
-    toast.success(`${item.name} added to cart`);
+  const handleCheckout = () => {
+    setIsCartOpen(false);
+    window.location.href = '/employee/cart';
+  };
+
+  const handleQuantityChange = (item: MenuItem, quantity: number) => {
+    if (quantity > 0) {
+      toast.success(`${item.name} quantity updated to ${quantity}`);
+    } else {
+      toast.success(`${item.name} removed from cart`);
+    }
   };
 
   if (loading) {
@@ -79,9 +90,28 @@ export const EmployeeBrowse: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Browse Vendors</h1>
-        <p className="text-gray-600 mt-1">Order food from your favorite vendors</p>
+      {/* Header with Cart Button */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Browse Vendors</h1>
+          <p className="text-gray-600 mt-1">Order food from your favorite vendors</p>
+        </div>
+        
+        {getTotalItems() > 0 && (
+          <Button
+            onClick={() => setIsCartOpen(true)}
+            className="relative bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <ShoppingCart className="w-5 h-5 mr-2" />
+            Cart
+            <Badge 
+              variant="primary" 
+              className="absolute -top-2 -right-2 text-xs min-w-5 h-5 flex items-center justify-center"
+            >
+              {getTotalItems()}
+            </Badge>
+          </Button>
+        )}
       </div>
 
       {!selectedVendor ? (
@@ -108,41 +138,30 @@ export const EmployeeBrowse: React.FC = () => {
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <div>
-              <Button variant="outline" onClick={() => setSelectedVendor(null)}>
-                Back to Vendors
-              </Button>
-            </div>
+          {/* Vendor Header */}
+          <div className="flex items-center justify-between mb-6">
+            <Button 
+              variant="outline" 
+              onClick={() => setSelectedVendor(null)}
+              className="flex items-center space-x-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Vendors</span>
+            </Button>
             <h2 className="text-2xl font-bold text-gray-900">{selectedVendor.name}</h2>
-            <div></div>
+            <div className="w-32"></div> {/* Spacer for alignment */}
           </div>
 
+          {/* Menu Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {menuItems
               .filter((item) => item.status === 'active')
               .map((item) => (
-                <Card key={item.id} hover>
-                  <CardBody>
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                        {item.description && (
-                          <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between mt-4">
-                      <span className="text-xl font-bold text-green-600">
-                        ₹{item.price.toFixed(2)}
-                      </span>
-                      <Button size="sm" onClick={() => handleAddToCart(item)}>
-                        <Plus className="w-4 h-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
-                  </CardBody>
-                </Card>
+                <MenuItemCard
+                  key={item.id}
+                  item={item}
+                  onQuantityChange={handleQuantityChange}
+                />
               ))}
           </div>
 
@@ -165,6 +184,13 @@ export const EmployeeBrowse: React.FC = () => {
           </CardBody>
         </Card>
       )}
+
+      {/* Cart Sidebar */}
+      <CartSidebar
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
+        onCheckout={handleCheckout}
+      />
     </div>
   );
 };

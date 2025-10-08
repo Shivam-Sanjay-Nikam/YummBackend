@@ -1,13 +1,73 @@
-import React, { useEffect, useState } from 'react';
-import { Card, CardBody } from '../../components/ui/Card';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
+import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
-import { Clock, CheckCircle, XCircle, List, ChevronDown, Trash2, Menu, X } from 'lucide-react';
+import { SearchInput } from '../../components/ui/SearchInput';
+import { DateRangeFilter } from '../../components/ui/DateRangeFilter';
+import { FilterBar } from '../../components/ui/FilterBar';
+import { FeedbackDisplay } from '../../components/ui/FeedbackDisplay';
+import { Clock, CheckCircle, XCircle, List, ChevronDown, Trash2, Menu, X, MessageSquare } from 'lucide-react';
 import { Order, OrderStatus } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { useRealtimeOrders } from '../../hooks/useRealtimeData';
+import { useSearchAndFilter } from '../../hooks/useSearchAndFilter';
 import toast from 'react-hot-toast';
+
+// ---------- StatusDropdown at module scope ----------
+type StatusDropdownProps = {
+  orderId: string;
+  status: OrderStatus;
+  isUpdating: boolean;
+  onStatusChange: (orderId: string, status: OrderStatus) => void;
+};
+
+export const StatusDropdown = memo<StatusDropdownProps>(({ orderId, status, isUpdating, onStatusChange }) => {
+  const handleDropdownChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
+    e.stopPropagation();
+    const newStatus = e.target.value as OrderStatus;
+    if (newStatus !== status) {
+      // Call the handler immediately for instant UI update
+      onStatusChange(orderId, newStatus);
+    }
+  }, [orderId, onStatusChange, status]);
+
+  // Prevent parent click handlers from closing the select preemptively
+  const stop = useCallback((e: React.MouseEvent) => e.stopPropagation(), []);
+
+  return (
+    <div className="relative inline-block" onClick={stop} onMouseDown={stop}>
+      <select
+        value={status}
+        onChange={handleDropdownChange}
+        onClick={stop}
+        onMouseDown={stop}
+        disabled={isUpdating}
+        aria-label={`Change status for order ${orderId}`}
+        className={`appearance-none bg-white border rounded-md px-2 sm:px-3 py-1.5 pr-6 sm:pr-8 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 transition-all duration-150 ${
+          isUpdating 
+            ? 'opacity-50 cursor-not-allowed border-blue-300 bg-blue-50' 
+            : 'border-gray-300 hover:border-blue-400'
+        }`}
+      >
+        <option value="placed">Placed</option>
+        <option value="preparing">Preparing</option>
+        <option value="prepared">Prepared</option>
+        <option value="given">Given</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="cancel_requested">Cancel Requested</option>
+      </select>
+
+      {isUpdating ? (
+        <div className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2">
+          <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-blue-500 border-t-transparent" />
+        </div>
+      ) : (
+        <ChevronDown className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
+      )}
+    </div>
+  );
+});
 
 export const VendorOrders: React.FC = () => {
   const { user } = useAuthStore();
@@ -18,6 +78,83 @@ export const VendorOrders: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ orderId: string; orderNumber: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'placed' | 'preparing' | 'prepared' | 'given' | 'cancelled' | 'cancel_requested'>('all');
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isTabLoading, setIsTabLoading] = useState(false);
+  const [isSearchLoading, setIsSearchLoading] = useState(false);
+  const [isFilterLoading, setIsFilterLoading] = useState(false);
+  const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
+  const [orderFeedback, setOrderFeedback] = useState<Record<string, any>>({});
+  const [feedbackLoaded, setFeedbackLoaded] = useState(false);
+  const [showAllFeedback, setShowAllFeedback] = useState(false);
+  const [allFeedback, setAllFeedback] = useState<any[]>([]);
+
+  // Search and filter state
+  const { state, updateFilter, clearAllFilters, hasActiveFilters } = useSearchAndFilter();
+  
+  // Debounced search term to prevent excessive filtering
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(state.searchTerm);
+  
+  useEffect(() => {
+    // Show search loading when user starts typing
+    if (state.searchTerm && state.searchTerm !== debouncedSearchTerm) {
+      setIsSearchLoading(true);
+    }
+    
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(state.searchTerm);
+      setIsSearchLoading(false);
+    }, 300); // 300ms delay
+    
+    return () => clearTimeout(timer);
+  }, [state.searchTerm, debouncedSearchTerm]);
+
+  // Handle tab switching with loading state
+  const handleTabChange = useCallback((tab: typeof activeTab) => {
+    if (tab === activeTab) return;
+    
+    setIsTabLoading(true);
+    setActiveTab(tab);
+    
+    // Simulate loading time for better UX
+    setTimeout(() => {
+      setIsTabLoading(false);
+    }, 200);
+  }, [activeTab]);
+
+  // Handle date range changes with loading state
+  const handleDateRangeChange = useCallback((from: Date | null, to: Date | null) => {
+    setIsFilterLoading(true);
+    updateFilter('dateFrom', from);
+    updateFilter('dateTo', to);
+    
+    // Simulate loading time for better UX
+    setTimeout(() => {
+      setIsFilterLoading(false);
+    }, 300);
+  }, [updateFilter]);
+
+  // Feedback handling functions - Read Only for Vendors
+  const handleToggleOrderExpansion = useCallback((orderId: string) => {
+    if (expandedOrder === orderId) {
+      setExpandedOrder(null);
+    } else {
+      setExpandedOrder(orderId);
+    }
+  }, [expandedOrder]);
+
+  const handleViewAllFeedback = useCallback(async () => {
+    setShowAllFeedback(!showAllFeedback);
+    if (!showAllFeedback && allFeedback.length === 0) {
+      try {
+        const response = await api.feedback.get();
+        if (response.data?.data?.feedback) {
+          setAllFeedback(response.data.data.feedback);
+        }
+      } catch (error) {
+        console.error('Error loading all feedback:', error);
+        toast.error('Failed to load feedback');
+      }
+    }
+  }, [showAllFeedback, allFeedback.length]);
 
   useEffect(() => {
     if (user) {
@@ -32,35 +169,114 @@ export const VendorOrders: React.FC = () => {
     }
   });
 
-  const loadOrders = async () => {
+  const loadOrders = useCallback(async () => {
     if (!user?.email) return;
     
     try {
       const { data, error } = await api.data.getOrders('vendor', user.email);
       if (error) throw error;
       setOrders(data || []);
+      // Load feedback for all orders at once
+      loadAllFeedback(data || []);
     } catch (error: any) {
       toast.error('Failed to load orders');
       console.error('Error loading orders:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.email]);
 
-  const handleUpdateStatus = async (orderId: string, status: OrderStatus) => {
-    setUpdatingStatus(orderId);
+  const loadAllFeedback = useCallback(async (orders: Order[]) => {
+    if (!user?.email || feedbackLoaded) return;
+    
     try {
-      await api.vendor.updateOrderStatus({ order_id: orderId, status });
+      const orderIds = orders.map(order => order.id);
+      const response = await api.feedback.get();
+      
+      if (response.data?.data?.feedback) {
+        const feedbackMap: Record<string, any> = {};
+        response.data.data.feedback.forEach((feedback: any) => {
+          if (orderIds.includes(feedback.order_id)) {
+            feedbackMap[feedback.order_id] = feedback;
+          }
+        });
+        setOrderFeedback(feedbackMap);
+        setFeedbackLoaded(true);
+      }
+    } catch (error) {
+      console.error('Error loading feedback:', error);
+    }
+  }, [user?.email, feedbackLoaded]);
+
+  const handleUpdateStatus = useCallback(async (orderId: string, status: OrderStatus) => {
+    setUpdatingStatus(orderId);
+    
+    // Optimistic update - update UI immediately
+    setOrders(prevOrders => 
+      prevOrders.map(order => 
+        order.id === orderId 
+          ? { ...order, status, updated_at: new Date().toISOString() }
+          : order
+      )
+    );
+
+    try {
+      const response = await api.vendor.updateOrderStatus({ order_id: orderId, status });
+
+      // Check if the response indicates an error
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+
       toast.success('Order status updated successfully');
-      loadOrders();
-      // Automatically switch to the appropriate tab based on new status
-      setActiveTab(status);
+      
+      // Reload orders in background to ensure data consistency
+      setTimeout(() => loadOrders(), 1000);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to update order status');
+      console.error('Status update error:', error);
+      toast.error(error.message || error.response?.data?.error || 'Failed to update order status');
+      
+      // Revert optimistic update on error
+      loadOrders();
     } finally {
       setUpdatingStatus(null);
     }
-  };
+  }, [loadOrders]);
+
+  const handleQuickStatusUpdate = useCallback(async (orderId: string, status: OrderStatus) => {
+    if (updatingStatus === orderId) return; // Prevent multiple simultaneous updates
+
+    setUpdatingStatus(orderId);
+    try {
+      await api.vendor.updateOrderStatus({ order_id: orderId, status });
+
+      // Optimistic update - update UI immediately
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status, updated_at: new Date().toISOString() }
+            : order
+        )
+      );
+
+      // Show success toast
+      const statusText = status === 'prepared' ? 'Prepared' :
+                        status === 'given' ? 'Given' :
+                        status === 'preparing' ? 'Preparing' : status;
+      toast.success(`Order marked as ${statusText}`);
+
+      // Reload orders in background to ensure data consistency
+      setTimeout(() => loadOrders(), 1000);
+    } catch (error: any) {
+      console.error('Quick status update error:', error);
+      toast.error(error.message || error.response?.data?.error || 'Failed to update order status');
+      
+      // Revert optimistic update on error
+      loadOrders();
+    } finally {
+      setUpdatingStatus(null);
+    }
+  }, [updatingStatus, setOrders, loadOrders]);
 
   const handleCancelRequest = async (orderId: string, action: 'accept' | 'reject') => {
     try {
@@ -90,57 +306,55 @@ export const VendorOrders: React.FC = () => {
     return true; // Allow deletion of orders with any status
   };
 
-  const getStatusBadge = (status: OrderStatus) => {
-    const statusConfig = {
-      placed: { variant: 'primary' as const, icon: Clock, text: 'Placed' },
-      preparing: { variant: 'warning' as const, icon: Clock, text: 'Preparing' },
-      prepared: { variant: 'warning' as const, icon: CheckCircle, text: 'Prepared' },
-      given: { variant: 'success' as const, icon: CheckCircle, text: 'Given' },
-      cancelled: { variant: 'danger' as const, icon: XCircle, text: 'Cancelled' },
-      cancel_requested: { variant: 'warning' as const, icon: XCircle, text: 'Cancel Requested' },
-    };
-
-    const config = statusConfig[status];
-    const Icon = config.icon;
-
-    return (
-      <Badge variant={config.variant}>
-        <Icon className="w-3 h-3 mr-1 inline" />
-        {config.text}
-      </Badge>
-    );
-  };
-
-  const StatusDropdown: React.FC<{ order: Order }> = ({ order }) => {
-    const allStatuses: OrderStatus[] = ['placed', 'preparing', 'prepared', 'given', 'cancelled', 'cancel_requested'];
-    const isUpdating = updatingStatus === order.id;
+  // Get active orders (placed, preparing, prepared)
+  const activeOrders = useMemo(() => {
+    if (!orders.length) return [];
     
-    return (
-      <div className="relative inline-block">
-        <select
-          value={order.status}
-          onChange={(e) => handleUpdateStatus(order.id, e.target.value as OrderStatus)}
-          disabled={isUpdating}
-          className={`appearance-none bg-white border border-gray-300 rounded-md px-2 sm:px-3 py-1.5 sm:py-1 pr-6 sm:pr-8 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-0 ${
-            isUpdating ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {allStatuses.map((status) => (
-            <option key={status} value={status}>
-              {getStatusBadge(status).props.children[1]}
-            </option>
-          ))}
-        </select>
-        {isUpdating ? (
-          <div className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2">
-            <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-blue-500 border-t-transparent"></div>
-          </div>
-        ) : (
-          <ChevronDown className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 w-3 h-3 sm:w-4 sm:h-4 text-gray-400 pointer-events-none" />
-        )}
-      </div>
+    const activeStatuses = ['placed', 'preparing', 'prepared'];
+    return orders
+      .filter(order => activeStatuses.includes(order.status))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [orders]);
+
+  // Filter and search orders - optimized
+  const filteredOrders = useMemo(() => {
+    if (!orders.length) return [];
+
+    let filtered = orders;
+
+    // Status filter (from active tab)
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(order => order.status === activeTab);
+    }
+
+    // Search filter - only if search term exists (using debounced term)
+    if (debouncedSearchTerm?.trim()) {
+      const searchLower = debouncedSearchTerm.toLowerCase();
+      filtered = filtered.filter(order => 
+        order.id.toLowerCase().includes(searchLower) ||
+        order.employees?.name?.toLowerCase().includes(searchLower) ||
+        order.employees?.email?.toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Date range filter - only if dates exist
+    if (state.dateFrom || state.dateTo) {
+      const fromTime = state.dateFrom ? new Date(state.dateFrom).getTime() : 0;
+      const toTime = state.dateTo ? new Date(state.dateTo).getTime() : Infinity;
+      
+      filtered = filtered.filter(order => {
+        const orderTime = new Date(order.created_at).getTime();
+        return orderTime >= fromTime && orderTime <= toTime;
+      });
+    }
+
+    // Sort by newest first (optimized)
+    return filtered.sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-  };
+  }, [orders, activeTab, debouncedSearchTerm, state.dateFrom, state.dateTo]);
+
+
 
   if (loading) {
     return (
@@ -150,23 +364,7 @@ export const VendorOrders: React.FC = () => {
     );
   }
 
-  // Filter orders based on active tab
-  const getFilteredOrders = () => {
-    let filteredOrders = orders;
-    
-    if (activeTab !== 'all') {
-      filteredOrders = orders.filter(order => order.status === activeTab);
-    }
-    
-    // Sort by oldest first
-    return filteredOrders.sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    );
-  };
-
-  const filteredOrders = getFilteredOrders();
-
-  // Get order counts for each tab
+  // Get order counts for each tab (using original orders, not filtered)
   const getOrderCounts = () => {
     return {
       all: orders.length,
@@ -187,12 +385,153 @@ export const VendorOrders: React.FC = () => {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="px-1">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Orders</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your orders by status</p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Orders</h1>
+            <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your orders efficiently</p>
+          </div>
+          <div className="mt-4 sm:mt-0">
+            <Button
+              onClick={handleViewAllFeedback}
+              variant="outline"
+              className="flex items-center space-x-2"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>{showAllFeedback ? 'Hide All Feedback' : 'View All Feedback'}</span>
+            </Button>
+          </div>
+        </div>
       </div>
+
+      {/* Active Orders Quick View */}
+      {activeOrders.length > 0 && (
+        <Card>
+          <CardBody className="p-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+                <Clock className="w-5 h-5 mr-2 text-blue-600" />
+                Active Orders ({activeOrders.length})
+              </h2>
+              <Badge variant="primary" className="text-sm">
+                {activeOrders.filter(o => o.status === 'placed').length} New
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {activeOrders.slice(0, 6).map((order) => (
+                <div key={order.id} className="bg-gray-50 rounded-lg p-3 border border-gray-200 hover:shadow-md transition-all duration-200 transform hover:scale-[1.02]">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">#{order.id.slice(0, 8)}</p>
+                      <p className="text-xs text-gray-600">{order.employees?.name || 'Unknown'}</p>
+                    </div>
+                    <Badge 
+                      variant={order.status === 'placed' ? 'primary' : order.status === 'preparing' ? 'warning' : 'success'}
+                      className="text-xs"
+                    >
+                      {order.status === 'placed' ? 'New' : order.status === 'preparing' ? 'Preparing' : 'Prepared'}
+                    </Badge>
+                  </div>
+                  
+                  <div className="text-xs text-gray-600 mb-3">
+                    {order.order_items?.slice(0, 2).map((item) => (
+                      <div key={item.id}>
+                        {item.menu_items?.name} x{item.quantity}
+                      </div>
+                    ))}
+                    {order.order_items && order.order_items.length > 2 && (
+                      <div>+{order.order_items.length - 2} more items</div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-green-600">
+                      ₹{order.total_amount.toFixed(2)}
+                    </span>
+                    <div className="flex space-x-1">
+                      {/* Button 1: Mark Ready (for placed/preparing orders) */}
+                      {(order.status === 'placed' || order.status === 'preparing') && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusUpdate(order.id, 'prepared')}
+                          disabled={updatingStatus === order.id}
+                          className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded disabled:opacity-50 transition-colors duration-150"
+                        >
+                          {updatingStatus === order.id ? '...' : 'Ready'}
+                        </button>
+                      )}
+                      
+                      {/* Button 2: Mark Given (for prepared orders) */}
+                      {order.status === 'prepared' && (
+                        <button
+                          type="button"
+                          onClick={() => handleQuickStatusUpdate(order.id, 'given')}
+                          disabled={updatingStatus === order.id}
+                          className="px-2 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded disabled:opacity-50 transition-colors duration-150"
+                        >
+                          {updatingStatus === order.id ? '...' : 'Given'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {activeOrders.length > 6 && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => handleTabChange('all')}
+                  className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  View all {activeOrders.length} active orders →
+                </button>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
+
+      {/* Search and Filter Bar */}
+      <FilterBar onClear={clearAllFilters} showClearButton={hasActiveFilters}>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-5">
+              <h4 className="text-base font-semibold text-gray-900">Search Orders</h4>
+              <SearchInput
+                placeholder="Search by order number or employee name..."
+                value={state.searchTerm}
+                onChange={(value) => updateFilter('searchTerm', value)}
+                size="md"
+                isLoading={isSearchLoading}
+              />
+            </div>
+            <div className="space-y-5">
+              <h4 className="text-base font-semibold text-gray-900">Date Range</h4>
+              <DateRangeFilter
+                fromDate={state.dateFrom}
+                toDate={state.dateTo}
+                onFromDateChange={(date) => handleDateRangeChange(date ? new Date(date) : null, state.dateTo ? new Date(state.dateTo) : null)}
+                onToDateChange={(date) => handleDateRangeChange(state.dateFrom ? new Date(state.dateFrom) : null, date ? new Date(date) : null)}
+                onClear={() => {
+                  updateFilter('dateFrom', '');
+                  updateFilter('dateTo', '');
+                }}
+                size="md"
+                isLoading={isFilterLoading}
+              />
+            </div>
+          </div>
+          <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+            <div className="text-sm text-gray-600">
+              Showing <span className="font-semibold text-gray-900">{filteredOrders.length}</span> of <span className="font-semibold text-gray-900">{orders.length}</span> orders
+            </div>
+          </div>
+        </div>
+      </FilterBar>
 
       {/* Mobile Tab Navigation */}
       <div className="sm:hidden">
@@ -293,12 +632,13 @@ export const VendorOrders: React.FC = () => {
           ].map((tab) => (
             <button
               key={tab.key}
-              onClick={() => setActiveTab(tab.key as any)}
+              onClick={() => handleTabChange(tab.key as any)}
+              disabled={isTabLoading}
               className={`py-2 px-3 lg:px-4 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === tab.key
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              } ${isTabLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {tab.label}
               {tab.count > 0 && (
@@ -314,6 +654,25 @@ export const VendorOrders: React.FC = () => {
           ))}
         </nav>
       </div>
+
+      {/* Feedback Summary */}
+      {feedbackLoaded && (
+        <Card className="bg-blue-50 border-blue-200">
+          <CardBody className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <MessageSquare className="w-5 h-5 text-blue-600" />
+                <span className="text-sm font-medium text-blue-900">
+                  Feedback Summary
+                </span>
+              </div>
+              <div className="text-sm text-blue-700">
+                {Object.keys(orderFeedback).length} of {filteredOrders.length} orders have feedback
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+      )}
 
       {/* Orders Table - Mobile Friendly */}
       <div className="space-y-4">
@@ -333,7 +692,12 @@ export const VendorOrders: React.FC = () => {
                       </p>
                     </div>
                     <div className="ml-2 flex-shrink-0">
-                      <StatusDropdown order={order} />
+                      <StatusDropdown 
+                        orderId={order.id}
+                        status={order.status}
+                        isUpdating={updatingStatus === order.id}
+                        onStatusChange={handleUpdateStatus}
+                      />
                     </div>
                   </div>
                   
@@ -410,104 +774,173 @@ export const VendorOrders: React.FC = () => {
               ))}
             </div>
 
-            {/* Desktop Table Layout */}
-            <div className="hidden sm:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order ID
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Items
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Amount
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50">
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{order.id.slice(0, 8)}
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.employees?.name || 'Unknown'}
-                      </td>
-                      <td className="hidden sm:table-cell px-6 py-4 text-sm text-gray-900">
-                        <div className="space-y-1">
-                          {order.order_items?.map((item) => (
-                            <div key={item.id} className="text-xs">
-                              {item.menu_items?.name || 'Unknown Item'} x{item.quantity}
-                            </div>
-                          ))}
+            {/* Simplified Orders List */}
+            <div className="space-y-3 relative">
+              {/* Tab Loading Overlay */}
+              {isTabLoading && (
+                <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-10 rounded-lg">
+                  <div className="flex items-center space-x-2 text-gray-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent"></div>
+                    <span className="text-sm font-medium">
+                      {activeTab === 'all' ? 'Loading all orders...' : 
+                       activeTab === 'placed' ? 'Loading new orders...' :
+                       activeTab === 'preparing' ? 'Loading preparing orders...' :
+                       activeTab === 'prepared' ? 'Loading ready orders...' :
+                       activeTab === 'given' ? 'Loading completed orders...' :
+                       activeTab === 'cancelled' ? 'Loading cancelled orders...' :
+                       activeTab === 'cancel_requested' ? 'Loading cancel requests...' :
+                       'Loading orders...'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {filteredOrders.map((order) => (
+                <Card key={order.id} className="hover:shadow-md transition-all duration-300 transform hover:scale-[1.02]">
+                  <CardBody className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-sm font-semibold text-gray-900">
+                            #{order.id.slice(0, 8)}
+                          </h3>
+                          <Badge 
+                            variant={order.status === 'placed' ? 'primary' : 
+                                   order.status === 'preparing' ? 'warning' : 
+                                   order.status === 'prepared' ? 'warning' : 
+                                   order.status === 'given' ? 'success' : 
+                                   order.status === 'cancelled' ? 'danger' : 'warning'}
+                            className="text-xs"
+                          >
+                            {order.status === 'placed' ? 'New' : 
+                             order.status === 'preparing' ? 'Preparing' : 
+                             order.status === 'prepared' ? 'Ready' : 
+                             order.status === 'given' ? 'Given' : 
+                             order.status === 'cancelled' ? 'Cancelled' : 'Cancel Requested'}
+                          </Badge>
                         </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
-                        ₹{order.total_amount.toFixed(2)}
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
-                        <StatusDropdown order={order} />
-                      </td>
-                      <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {new Date(order.created_at).toLocaleDateString()}
-                      </td>
-                      <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex flex-col sm:flex-row space-y-1 sm:space-y-0 sm:space-x-2">
-                          {order.status === 'cancel_requested' && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="success"
-                                onClick={() => handleCancelRequest(order.id, 'accept')}
-                                className="text-xs"
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCancelRequest(order.id, 'reject')}
-                                className="text-xs"
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                          {canDeleteOrder() && (
-                            <Button
-                              size="sm"
-                              variant="danger"
-                              onClick={() => setShowDeleteConfirm({ 
-                                orderId: order.id, 
-                                orderNumber: order.id.slice(0, 8) 
-                              })}
-                              disabled={deletingOrder === order.id}
-                              className="text-xs"
-                            >
-                              <Trash2 className="w-3 h-3 mr-1" />
-                              Delete
-                            </Button>
-                          )}
+                        <p className="text-sm text-gray-600 mb-1">
+                          {order.employees?.name || 'Unknown Customer'}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(order.created_at).toLocaleDateString()} at {new Date(order.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-green-600">
+                          ₹{order.total_amount.toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Order Items */}
+                    <div className="mb-4">
+                      <div className="text-xs text-gray-600 space-y-1">
+                        {order.order_items?.map((item) => (
+                          <div key={item.id} className="flex justify-between">
+                            <span>{item.menu_items?.name || 'Unknown Item'}</span>
+                            <span>x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action Buttons - Only 2 buttons */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex space-x-2">
+                        {/* Button 1: Mark Ready (for placed/preparing orders) */}
+                        {(order.status === 'placed' || order.status === 'preparing') && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusUpdate(order.id, 'prepared')}
+                            disabled={updatingStatus === order.id}
+                            className="px-3 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded disabled:opacity-50 transition-colors duration-150"
+                          >
+                            {updatingStatus === order.id ? 'Updating...' : 'Mark Ready'}
+                          </button>
+                        )}
+                        
+                        {/* Button 2: Mark Given (for prepared orders) */}
+                        {order.status === 'prepared' && (
+                          <button
+                            type="button"
+                            onClick={() => handleQuickStatusUpdate(order.id, 'given')}
+                            disabled={updatingStatus === order.id}
+                            className="px-3 py-1 text-xs bg-green-500 hover:bg-green-600 text-white rounded disabled:opacity-50 transition-colors duration-150"
+                          >
+                            {updatingStatus === order.id ? 'Updating...' : 'Mark Given'}
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Status Dropdown and Actions */}
+                      <div className="flex items-center space-x-2">
+                        <StatusDropdown 
+                          orderId={order.id}
+                          status={order.status}
+                          isUpdating={updatingStatus === order.id}
+                          onStatusChange={handleUpdateStatus}
+                        />
+                        
+                        {/* Feedback Button - Read Only for Vendors */}
+                        <div className="flex items-center space-x-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleOrderExpansion(order.id)}
+                            className={`relative p-1 transition-colors ${
+                              expandedOrder === order.id
+                                ? 'text-blue-500 hover:text-blue-600'
+                                : orderFeedback[order.id] 
+                                  ? 'text-blue-500 hover:text-blue-600' 
+                                  : 'text-gray-400 hover:text-gray-500'
+                            }`}
+                            title={expandedOrder === order.id ? "Hide feedback" : orderFeedback[order.id] ? "View feedback" : "No feedback available"}
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            {orderFeedback[order.id] && (
+                              <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full"></div>
+                            )}
+                          </button>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        
+                        {canDeleteOrder() && (
+                          <button
+                            onClick={() => setShowDeleteConfirm({ 
+                              orderId: order.id, 
+                              orderNumber: order.id.slice(0, 8) 
+                            })}
+                            disabled={deletingOrder === order.id}
+                            className="p-1 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Delete order"
+                            type="button"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Feedback Section - Expandable (Read Only for Vendors) */}
+                    {expandedOrder === order.id && (
+                      <div className="border-t border-gray-200 pt-4 mt-4">
+                        <h4 className="text-sm font-medium text-gray-700 mb-3">Feedback</h4>
+                        {orderFeedback[order.id] ? (
+                          <FeedbackDisplay
+                            feedback={orderFeedback[order.id]}
+                            showUserDetails={true} // Vendors can see user details if shared
+                            className="border border-gray-200 rounded-lg"
+                          />
+                        ) : (
+                          <div className="text-center py-8 text-gray-500 border border-gray-200 rounded-lg">
+                            <MessageSquare className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                            <p>No feedback available for this order</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
+              ))}
             </div>
           </CardBody>
         </Card>
@@ -529,6 +962,45 @@ export const VendorOrders: React.FC = () => {
           </Card>
         )}
       </div>
+
+      {/* All Feedback Section */}
+      {showAllFeedback && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">All Customer Feedback</h3>
+              <Button
+                onClick={handleViewAllFeedback}
+                size="sm"
+                variant="outline"
+                className="flex items-center space-x-1"
+              >
+                <MessageSquare className="w-4 h-4" />
+                <span>Refresh</span>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardBody>
+            {allFeedback.length > 0 ? (
+              <div className="space-y-4">
+                {allFeedback.map((feedback) => (
+                  <FeedbackDisplay
+                    key={feedback.id}
+                    feedback={feedback}
+                    showUserDetails={true} // Vendors can see user details if shared
+                    className="border border-gray-200 rounded-lg"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No feedback received yet</p>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Delete Confirmation Dialog */}
       {showDeleteConfirm && (
@@ -567,6 +1039,9 @@ export const VendorOrders: React.FC = () => {
           </div>
         </div>
       )}
+
+
     </div>
   );
 };
+

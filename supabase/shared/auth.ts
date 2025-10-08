@@ -208,6 +208,7 @@ export function requireSameOrg(user: AuthUser, targetOrgId: string): boolean {
   return user.org_id === targetOrgId;
 }
 
+
 export async function createAuthUser(
   email: string,
   password: string,

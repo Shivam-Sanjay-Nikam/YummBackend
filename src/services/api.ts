@@ -1120,6 +1120,234 @@ export const api = {
       }
     },
   },
+
+  // Feedback API - Direct Supabase calls
+  feedback: {
+    submit: async (data: {
+      order_id: string;
+      rating: number;
+      comment?: string;
+      share_user_details: boolean;
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+
+      try {
+        // Get employee ID
+        const { data: employee, error: employeeError } = await supabase
+          .from('employees')
+          .select('id, org_id')
+          .eq('email', user.email)
+          .single();
+
+        if (employeeError || !employee) {
+          throw new Error('Employee not found');
+        }
+
+        // Check if feedback already exists
+        const { data: existingFeedback } = await supabase
+          .from('order_feedback')
+          .select('id')
+          .eq('order_id', data.order_id)
+          .eq('employee_id', employee.id)
+          .single();
+
+        let feedback;
+        if (existingFeedback) {
+          // Update existing feedback
+          const { data: updatedFeedback, error: updateError } = await supabase
+            .from('order_feedback')
+            .update({
+              rating: data.rating,
+              comment: data.comment || null,
+              share_user_details: data.share_user_details,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingFeedback.id)
+            .select(`
+              *,
+              employees:employee_id (
+                name,
+                email
+              )
+            `)
+            .single();
+
+          if (updateError) {
+            throw updateError;
+          }
+          feedback = updatedFeedback;
+        } else {
+          // Create new feedback
+          const { data: newFeedback, error: createError } = await supabase
+            .from('order_feedback')
+            .insert({
+              order_id: data.order_id,
+              employee_id: employee.id,
+              rating: data.rating,
+              comment: data.comment || null,
+              share_user_details: data.share_user_details
+            })
+            .select(`
+              *,
+              employees:employee_id (
+                name,
+                email
+              )
+            `)
+            .single();
+
+          if (createError) {
+            throw createError;
+          }
+          feedback = newFeedback;
+        }
+
+        // Return in the same format as the Edge Function
+        return {
+          data: {
+            success: true,
+            data: {
+              feedback,
+              message: existingFeedback ? 'Feedback updated successfully' : 'Feedback submitted successfully'
+            }
+          },
+          status: 200
+        };
+
+      } catch (error: any) {
+        console.error('Direct Supabase feedback submission error:', error);
+        throw new Error(error.message || 'Failed to submit feedback');
+      }
+    },
+
+    get: async (params?: {
+      order_id?: string;
+      vendor_id?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+
+      try {
+        // Get user's organization and role
+        let orgId: string;
+        let userRole: string;
+
+        // Check if user is staff
+        const { data: staff } = await supabase
+          .from('organization_staff')
+          .select('org_id')
+          .eq('email', user.email)
+          .single();
+
+        if (staff) {
+          orgId = staff.org_id;
+          userRole = 'staff';
+        } else {
+          // Check if user is vendor
+          const { data: vendor } = await supabase
+            .from('vendors')
+            .select('org_id')
+            .eq('email', user.email)
+            .single();
+
+          if (vendor) {
+            orgId = vendor.org_id;
+            userRole = 'vendor';
+          } else {
+            // Check if user is employee
+            const { data: employee } = await supabase
+              .from('employees')
+              .select('org_id')
+              .eq('email', user.email)
+              .single();
+
+            if (employee) {
+              orgId = employee.org_id;
+              userRole = 'employee';
+            } else {
+              throw new Error('User not found in any role');
+            }
+          }
+        }
+
+        // Build query
+        let query = supabase
+          .from('order_feedback')
+          .select(`
+            *,
+            employees:employee_id (
+              name,
+              email
+            ),
+            orders:order_id (
+              id,
+              status,
+              total_amount,
+              vendors:vendor_id (
+                name
+              )
+            )
+          `)
+          .eq('orders.org_id', orgId)
+          .order('created_at', { ascending: false });
+
+        // Apply filters
+        if (params?.order_id) {
+          query = query.eq('order_id', params.order_id);
+        }
+
+        if (params?.vendor_id && userRole === 'staff') {
+          query = query.eq('orders.vendor_id', params.vendor_id);
+        }
+
+        if (userRole === 'vendor') {
+          const { data: vendor } = await supabase
+            .from('vendors')
+            .select('id')
+            .eq('email', user.email)
+            .single();
+
+          if (vendor) {
+            query = query.eq('orders.vendor_id', vendor.id);
+          }
+        }
+
+        // Apply pagination
+        if (params?.limit) {
+          const offset = params?.offset || 0;
+          query = query.range(offset, offset + params.limit - 1);
+        }
+
+        const { data: feedback, error, count } = await query;
+
+        if (error) {
+          throw error;
+        }
+
+        return {
+          data: {
+            success: true,
+            data: {
+              feedback: feedback || [],
+              total_count: count || 0
+            }
+          },
+          status: 200
+        };
+
+      } catch (error: any) {
+        console.error('Direct Supabase feedback get error:', error);
+        throw new Error(error.message || 'Failed to fetch feedback');
+      }
+    },
+  },
 };
 
 export default apiClient;
