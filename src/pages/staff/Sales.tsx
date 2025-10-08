@@ -16,12 +16,10 @@ import {
   IndianRupee,
   FileSpreadsheet,
   RefreshCw,
-  MessageSquare,
   X
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { FeedbackDisplay } from '../../components/ui/FeedbackDisplay';
 import toast from 'react-hot-toast';
 
 interface SalesData {
@@ -58,8 +56,6 @@ export const StaffSales: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [recentFeedback, setRecentFeedback] = useState<any[]>([]);
-  const [showFeedback, setShowFeedback] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
   const [showReport, setShowReport] = useState(false);
 
@@ -140,17 +136,7 @@ export const StaffSales: React.FC = () => {
     loadSalesData();
   };
 
-  const loadRecentFeedback = async () => {
     try {
-      const response = await api.feedback.get({ limit: 10 });
-      if (response.data?.data?.feedback) {
-        setRecentFeedback(response.data.data.feedback);
-      }
-    } catch (error) {
-      console.error('Error loading feedback:', error);
-    }
-  };
-
   const generateReport = () => {
     const allTransactions = salesData.flatMap(vendor => vendor.transactions);
     
@@ -221,16 +207,11 @@ export const StaffSales: React.FC = () => {
         <div className="mt-4 sm:mt-0 flex space-x-2">
           <Button
             onClick={() => {
-              setShowFeedback(!showFeedback);
-              if (!showFeedback) {
-                loadRecentFeedback();
               }
             }}
             variant="outline"
             className="flex items-center space-x-2"
           >
-            <MessageSquare className="w-4 h-4" />
-            <span>{showFeedback ? 'Hide Feedback' : 'View Feedback'}</span>
           </Button>
           <Button
             onClick={generateReport}
@@ -370,45 +351,6 @@ export const StaffSales: React.FC = () => {
           </div>
         </div>
       </FilterBar>
-
-      {/* Recent Feedback Section */}
-      {showFeedback && (
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900">Recent Feedback</h3>
-              <Button
-                onClick={loadRecentFeedback}
-                size="sm"
-                variant="outline"
-                className="flex items-center space-x-1"
-              >
-                <RefreshCw className="w-4 h-4" />
-                <span>Refresh</span>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardBody>
-            {recentFeedback.length > 0 ? (
-              <div className="space-y-4">
-                {recentFeedback.map((feedback) => (
-                  <FeedbackDisplay
-                    key={feedback.id}
-                    feedback={feedback}
-                    showUserDetails={true} // Staff can see user details if shared
-                    className="border border-gray-200 rounded-lg"
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500">
-                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p>No feedback available</p>
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      )}
 
       {/* Sales Data */}
       <div className="space-y-4">

@@ -1,0 +1,50 @@
+From 33e130fc57cb05a74e5a2e5e2deda2deba2737ac Mon Sep 17 00:00:00 2001
+From: Prabhanshu <prabhanshutripathi534@gmail.com>
+Date: Wed, 8 Oct 2025 11:31:08 +0530
+Subject: [PATCH 2/2] improved ui, added search filter, solved a few bugs,
+ added feedback and notification frontend, added intermediate loading messages
+
+---
+ src/components/ui/MenuItemCard.tsx | 6 ++++++
+ supabase/.temp/pooler-url          | 2 +-
+ supabase/.temp/project-ref         | 2 +-
+ 3 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/components/ui/MenuItemCard.tsx b/src/components/ui/MenuItemCard.tsx
+index a423a82..f690c58 100644
+--- a/src/components/ui/MenuItemCard.tsx
++++ b/src/components/ui/MenuItemCard.tsx
+@@ -64,6 +64,12 @@ export const MenuItemCard: React.FC<MenuItemCardProps> = ({
+           <h3 className="text-lg font-semibold text-gray-900 mb-2 pr-16">
+             {item.name}
+           </h3>
++          
++          {item.description && (
++            <p className="text-sm text-gray-600 mb-3 line-clamp-2">
++              {item.description}
++            </p>
++          )}
+ 
+           <div className="flex items-center justify-between">
+             <div className="flex items-center space-x-2">
+diff --git a/supabase/.temp/pooler-url b/supabase/.temp/pooler-url
+index ecfcf50..1baa169 100644
+--- a/supabase/.temp/pooler-url
++++ b/supabase/.temp/pooler-url
+@@ -1 +1 @@
+-postgresql://postgres.sjtttdnqjgwggczhwzad:[YOUR-PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+\ No newline at end of file
++postgresql://postgres.psmejbectlaoqnzbowbf:[YOUR-PASSWORD]@aws-1-ap-south-1.pooler.supabase.com:6543/postgres
+\ No newline at end of file
+diff --git a/supabase/.temp/project-ref b/supabase/.temp/project-ref
+index cf40050..6d67045 100644
+--- a/supabase/.temp/project-ref
++++ b/supabase/.temp/project-ref
+@@ -1 +1 @@
+-sjtttdnqjgwggczhwzad
+\ No newline at end of file
++psmejbectlaoqnzbowbf
+\ No newline at end of file
+-- 
+2.34.1
+

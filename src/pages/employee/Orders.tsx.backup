@@ -138,8 +138,135 @@ export const EmployeeOrders: React.FC = () => {
     }
   };
 
+  // Feedback handling functions
+  const handleToggleOrderExpansion = async (orderId: string) => {
+    if (expandedOrder === orderId) {
+      setExpandedOrder(null);
+    } else {
+      setExpandedOrder(orderId);
+      
+      // Load feedback for this order if not already loaded
+      if (!orderFeedback[orderId]) {
+        try {
+          const response = await api.feedback.get({ order_id: orderId });
+          if (response.data?.data?.feedback?.length > 0) {
+            setOrderFeedback(prev => ({
+              ...prev,
+              [orderId]: response.data.data.feedback[0]
+            }));
+          }
+        } catch (error) {
+          console.error('Error loading feedback:', error);
+        }
+      }
+    }
+  };
 
 
+  const handleSubmitFeedback = async (orderId: string, feedback: {
+    rating: number;
+    comment: string;
+    share_user_details: boolean;
+  }) => {
+    setIsSubmittingFeedback(true);
+    console.log('🚀 Starting feedback submission...');
+    console.log('Order ID:', orderId);
+    console.log('Feedback data:', feedback);
+    
+    try {
+      // Check if user is authenticated
+      const { user } = useAuthStore.getState();
+      console.log('Current user:', user);
+      
+      if (!user?.email) {
+        throw new Error('User not authenticated');
+      }
+
+      console.log('📡 Making API call to submit_feedback...');
+      const response = await api.feedback.submit({
+        order_id: orderId,
+        ...feedback
+      });
+
+      console.log('📥 Full API response:', response);
+      console.log('Response status:', response?.status);
+      console.log('Response data:', response?.data);
+
+      // More comprehensive success checking
+      const isSuccess = response?.status >= 200 && response?.status < 300;
+      const hasSuccessFlag = response?.data?.success === true;
+      const hasData = response?.data?.data;
+      
+      console.log('Success checks:', {
+        isSuccess,
+        hasSuccessFlag,
+        hasData,
+        status: response?.status
+      });
+
+      if (!isSuccess && !hasSuccessFlag) {
+        const errorMsg = `HTTP ${response?.status}` || 'Unknown server response';
+        console.error('❌ API call failed:', errorMsg);
+        throw new Error(errorMsg);
+      }
+
+      // Try multiple ways to extract feedback data
+      let feedbackData = null;
+      
+      if (response?.data?.data?.feedback) {
+        feedbackData = Array.isArray(response.data.data.feedback) 
+          ? response.data.data.feedback[0] 
+          : response.data.data.feedback;
+        console.log('✅ Found feedback in response.data.data.feedback:', feedbackData);
+      } else if (response?.data?.data) {
+        feedbackData = response.data.data;
+        console.log('✅ Found feedback in response.data.data:', feedbackData);
+      } else if (response?.data) {
+        feedbackData = response.data;
+        console.log('✅ Using response.data as feedback:', feedbackData);
+      }
+
+      if (feedbackData) {
+        console.log('💾 Updating order feedback state...');
+        setOrderFeedback(prev => ({ ...prev, [orderId]: feedbackData }));
+        console.log('✅ Feedback state updated successfully');
+      } else {
+        console.warn('⚠️ No feedback data in response, creating fallback...');
+        const fallbackFeedback = {
+          id: `temp_${Date.now()}`,
+          order_id: orderId,
+          rating: feedback.rating,
+          comment: feedback.comment,
+          share_user_details: feedback.share_user_details,
+          created_at: new Date().toISOString(),
+          submitted_at: new Date().toISOString()
+        };
+        setOrderFeedback(prev => ({ ...prev, [orderId]: fallbackFeedback }));
+        console.log('✅ Fallback feedback created:', fallbackFeedback);
+      }
+
+      toast.success('Feedback submitted successfully!');
+      console.log('🎉 Feedback submission completed successfully');
+      
+    } catch (err: any) {
+      console.error('❌ Error submitting feedback:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+        stack: err.stack
+      });
+      
+      const errorMessage = err.response?.data?.error ||
+                           err.response?.data?.message ||
+                           err.message ||
+                           'Failed to submit feedback';
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmittingFeedback(false);
+      console.log('🏁 Feedback submission process completed');
+    }
+  };
 
 
   const canCancelOrder = (order: Order) => {
