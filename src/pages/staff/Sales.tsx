@@ -3,6 +3,8 @@ import { Card, CardBody, CardHeader } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Badge } from '../../components/ui/Badge';
+import { DateRangeFilter } from '../../components/ui/DateRangeFilter';
+import { FilterBar } from '../../components/ui/FilterBar';
 import { 
   BarChart3, 
   Download, 
@@ -13,10 +15,13 @@ import {
   Users, 
   IndianRupee,
   FileSpreadsheet,
-  RefreshCw
+  RefreshCw,
+  MessageSquare,
+  X
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
+import { FeedbackDisplay } from '../../components/ui/FeedbackDisplay';
 import toast from 'react-hot-toast';
 
 interface SalesData {
@@ -53,6 +58,8 @@ export const StaffSales: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [recentFeedback, setRecentFeedback] = useState<any[]>([]);
+  const [showFeedback, setShowFeedback] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<string>('all');
   const [showReport, setShowReport] = useState(false);
 
@@ -133,6 +140,17 @@ export const StaffSales: React.FC = () => {
     loadSalesData();
   };
 
+  const loadRecentFeedback = async () => {
+    try {
+      const response = await api.feedback.get({ limit: 10 });
+      if (response.data?.data?.feedback) {
+        setRecentFeedback(response.data.data.feedback);
+      }
+    } catch (error) {
+      console.error('Error loading feedback:', error);
+    }
+  };
+
   const generateReport = () => {
     const allTransactions = salesData.flatMap(vendor => vendor.transactions);
     
@@ -200,7 +218,20 @@ export const StaffSales: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Sales Analytics</h1>
           <p className="text-gray-600 mt-1">Vendor-wise sales performance and detailed reports</p>
         </div>
-        <div className="mt-4 sm:mt-0">
+        <div className="mt-4 sm:mt-0 flex space-x-2">
+          <Button
+            onClick={() => {
+              setShowFeedback(!showFeedback);
+              if (!showFeedback) {
+                loadRecentFeedback();
+              }
+            }}
+            variant="outline"
+            className="flex items-center space-x-2"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span>{showFeedback ? 'Hide Feedback' : 'View Feedback'}</span>
+          </Button>
           <Button
             onClick={generateReport}
             className="flex items-center space-x-2"
@@ -252,52 +283,132 @@ export const StaffSales: React.FC = () => {
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <h2 className="text-lg font-semibold text-gray-900">Filters</h2>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">From Date</label>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-              />
+      <FilterBar onClear={() => {
+        setDateFrom('');
+        setDateTo('');
+        setSelectedVendor('all');
+        handleDateFilter();
+      }}>
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-5">
+              <h4 className="text-base font-semibold text-gray-900">Date Range</h4>
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-3">
+                    <label className="block text-sm font-semibold text-gray-700">Start Date</label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={dateFrom}
+                        onChange={(e) => setDateFrom(e.target.value)}
+                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm hover:border-gray-400 bg-white transition-all duration-200"
+                        placeholder="Select start date"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-sm font-semibold text-gray-700">End Date</label>
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={dateTo}
+                        onChange={(e) => setDateTo(e.target.value)}
+                        className="block w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm hover:border-gray-400 bg-white transition-all duration-200"
+                        placeholder="Select end date"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {(dateFrom || dateTo) && (
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => {
+                        setDateFrom('');
+                        setDateTo('');
+                      }}
+                      className="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-lg transition-all duration-200 border border-gray-300 hover:border-gray-400"
+                    >
+                      <X className="h-4 w-4 mr-2" />
+                      Clear dates
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">To Date</label>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Vendor</label>
-              <select
-                value={selectedVendor}
-                onChange={(e) => setSelectedVendor(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Vendors</option>
-                {Array.isArray(salesData) && salesData.map(vendor => (
-                  <option key={vendor.vendor_id} value={vendor.vendor_id}>
-                    {vendor.vendor_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-end">
-              <Button onClick={handleDateFilter} className="w-full">
-                <Filter className="w-4 h-4 mr-2" />
-                Apply Filter
-              </Button>
+            <div className="space-y-5">
+              <h4 className="text-base font-semibold text-gray-900">Vendor</h4>
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-700">Select Vendor</label>
+                <div className="relative">
+                  <select
+                    value={selectedVendor}
+                    onChange={(e) => setSelectedVendor(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white hover:border-gray-400 transition-all duration-200 text-sm font-medium"
+                  >
+                    <option value="all">All Vendors</option>
+                    {Array.isArray(salesData) && salesData.map(vendor => (
+                      <option key={vendor.vendor_id} value={vendor.vendor_id}>
+                        {vendor.vendor_name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
-        </CardBody>
-      </Card>
+          <div className="flex justify-end pt-6 border-t border-gray-100">
+            <Button onClick={handleDateFilter} className="px-10 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all duration-200 shadow-sm hover:shadow-md text-base">
+              <Filter className="w-5 h-5 mr-2" />
+              Apply Filter
+            </Button>
+          </div>
+        </div>
+      </FilterBar>
+
+      {/* Recent Feedback Section */}
+      {showFeedback && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">Recent Feedback</h3>
+              <Button
+                onClick={loadRecentFeedback}
+                size="sm"
+                variant="outline"
+                className="flex items-center space-x-1"
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>Refresh</span>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardBody>
+            {recentFeedback.length > 0 ? (
+              <div className="space-y-4">
+                {recentFeedback.map((feedback) => (
+                  <FeedbackDisplay
+                    key={feedback.id}
+                    feedback={feedback}
+                    showUserDetails={true} // Staff can see user details if shared
+                    className="border border-gray-200 rounded-lg"
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <MessageSquare className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <p>No feedback available</p>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      )}
 
       {/* Sales Data */}
       <div className="space-y-4">
