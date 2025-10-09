@@ -562,10 +562,11 @@ export const VendorOrders: React.FC = () => {
           </div>
         </div>
       </FilterBar>
+      )}
 
       {/* Mobile Tab Navigation - Orders View Only */}
       {currentView === 'orders' && (
-      <div className="sm:hidden">
+        <div className="sm:hidden">
         {/* Mobile Tab Header */}
         <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
           <div className="flex items-center space-x-3">
@@ -648,10 +649,11 @@ export const VendorOrders: React.FC = () => {
           </div>
         )}
       </div>
+      )}
 
       {/* Desktop Tab Navigation - Orders View Only */}
       {currentView === 'orders' && (
-      <div className="hidden sm:block border-b border-gray-200">
+        <div className="hidden sm:block border-b border-gray-200">
         <nav className="-mb-px flex space-x-4 lg:space-x-8">
           {[
             { key: 'placed', label: 'Placed', count: orderCounts.placed },
@@ -686,28 +688,10 @@ export const VendorOrders: React.FC = () => {
           ))}
         </nav>
       </div>
-
-      {/* Feedback Summary */}
-      {feedbackLoaded && (
-        <Card className="bg-blue-50 border-blue-200">
-          <CardBody className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <MessageSquare className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-blue-900">
-                  Feedback Summary
-                </span>
-              </div>
-              <div className="text-sm text-blue-700">
-                {Object.keys(orderFeedback).length} of {filteredOrders.length} orders have feedback
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-      )}
       )}
 
       {/* Orders Table - Mobile Friendly */}
+      {currentView === 'orders' && (
       <div className="space-y-4">
         <Card>
           <CardBody className="p-2 sm:p-4 lg:p-6">
@@ -1055,6 +1039,7 @@ export const VendorOrders: React.FC = () => {
           </Card>
         )}
       </div>
+      )}
 
       {/* All Feedback Section */}
       {showAllFeedback && (
