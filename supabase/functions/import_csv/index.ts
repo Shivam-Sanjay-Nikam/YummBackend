@@ -9,7 +9,7 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 interface ImportCsvRequest {
   csvData: string;
-  type: 'employees' | 'vendors' | 'organization_staff';
+  type: 'employees' | 'vendors' | 'organization_staff' | 'menu_items';
   user_email?: string;
 }
 
@@ -61,6 +61,8 @@ Deno.serve(async (req: Request) => {
       ? ['name', 'email', 'password']
       : body.type === 'vendors'
       ? ['name', 'email', 'password']
+      : body.type === 'menu_items'
+      ? ['name', 'price']
       : ['name', 'email', 'password'];
 
     const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
@@ -218,6 +220,53 @@ Deno.serve(async (req: Request) => {
           }
 
           imported.push(newStaff);
+
+        } else if (body.type === 'menu_items') {
+          // Validate required fields
+          if (!row.name || !row.price) {
+            errors.push(`Row ${row.row}: Missing required fields (name, price)`);
+            continue;
+          }
+
+          // Validate price is numeric
+          const price = parseFloat(row.price);
+          if (isNaN(price) || price < 0) {
+            errors.push(`Row ${row.row}: Price must be a valid positive number`);
+            continue;
+          }
+
+          // Get vendor info from user
+          const { data: vendorRecord, error: vendorError } = await supabase
+            .from('vendors')
+            .select('id, org_id')
+            .eq('email', body.user_email)
+            .single();
+
+          if (vendorError || !vendorRecord) {
+            errors.push(`Row ${row.row}: Vendor not found`);
+            continue;
+          }
+
+          // Create menu item
+          const { data: newMenuItem, error: createError } = await supabase
+            .from('menu_items')
+            .insert({
+              org_id: vendorRecord.org_id,
+              vendor_id: vendorRecord.id,
+              name: row.name,
+              description: row.description || null,
+              price: price,
+              status: row.status === 'active' ? 'active' : 'inactive' // Default to inactive
+            })
+            .select()
+            .single();
+
+          if (createError) {
+            errors.push(`Row ${row.row}: ${createError.message}`);
+            continue;
+          }
+
+          imported.push(newMenuItem);
         }
       } catch (error) {
         errors.push(`Row ${row.row}: ${error.message}`);

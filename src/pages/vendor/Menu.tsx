@@ -527,10 +527,10 @@ const CsvImportModal: React.FC<{
   };
 
   const downloadTemplate = () => {
-    const headers = ['name', 'description', 'price', 'status'];
+    const headers = ['name', 'description', 'price'];
     const sampleData = [
-      ['Sample Item 1', 'Delicious sample item', '50.00', 'active'],
-      ['Sample Item 2', 'Another tasty item', '75.00', 'active']
+      ['Sample Item 1', 'Delicious sample item', '50.00'],
+      ['Sample Item 2', 'Another tasty item', '75.00']
     ];
     
     const csvContent = [headers, ...sampleData]
@@ -614,9 +614,9 @@ const CsvImportModal: React.FC<{
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h4 className="text-sm font-medium text-blue-800 mb-2">CSV Format Requirements:</h4>
             <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Required columns: name, price, status</li>
-              <li>• Optional columns: description</li>
-              <li>• Status values: active, inactive</li>
+              <li>• Required columns: name, price</li>
+              <li>• Optional columns: description, status</li>
+              <li>• Status values: active, inactive (defaults to inactive if not provided)</li>
               <li>• Price should be numeric (e.g., 50.00)</li>
             </ul>
             <button
