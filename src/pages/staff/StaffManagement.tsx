@@ -3,12 +3,13 @@ import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Users, Edit2, Trash2, FileSpreadsheet, Upload, Key, Eye, EyeOff } from 'lucide-react';
+import { Plus, Users, Edit2, Trash2, FileSpreadsheet, Upload, Key, Eye, EyeOff, Search } from 'lucide-react';
 import { OrganizationStaff } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeOrganizationStaff } from '../../hooks/useRealtimeData';
+import { PageLoadingSpinner } from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 export const StaffManagement: React.FC = () => {
@@ -21,6 +22,7 @@ export const StaffManagement: React.FC = () => {
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState<OrganizationStaff | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -81,12 +83,14 @@ export const StaffManagement: React.FC = () => {
     }
   };
 
+  // Filter staff based on search term
+  const filteredStaff = staff.filter(member => 
+    member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading staff members..." />;
   }
 
   return (
@@ -115,9 +119,39 @@ export const StaffManagement: React.FC = () => {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-300">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors duration-200" />
+          <Input
+            type="text"
+            placeholder="Search staff by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+          />
+        </div>
+      </div>
+
       {/* Desktop Table View */}
       <div className="hidden lg:block">
-        <Card>
+        {filteredStaff.length === 0 ? (
+          <Card className="p-8 text-center">
+            <div className="text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm ? 'No staff found' : 'No staff members'}
+              </h3>
+              <p className="text-gray-500">
+                {searchTerm 
+                  ? `No staff members match "${searchTerm}"` 
+                  : 'Get started by adding your first staff member'
+                }
+              </p>
+            </div>
+          </Card>
+        ) : (
+          <Card className="overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300">
           <CardBody className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -141,7 +175,7 @@ export const StaffManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {staff.map((staffMember) => (
+                  {filteredStaff.map((staffMember) => (
                     <tr key={staffMember.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{staffMember.name}</div>
@@ -195,12 +229,29 @@ export const StaffManagement: React.FC = () => {
             </div>
           </CardBody>
         </Card>
+        )}
       </div>
 
       {/* Mobile Card View */}
       <div className="lg:hidden space-y-4">
-        {staff.map((staffMember) => (
-          <Card key={staffMember.id} className="hover:shadow-md transition-shadow">
+        {filteredStaff.length === 0 ? (
+          <Card className="p-8 text-center">
+            <div className="text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {searchTerm ? 'No staff found' : 'No staff members'}
+              </h3>
+              <p className="text-gray-500">
+                {searchTerm 
+                  ? `No staff members match "${searchTerm}"` 
+                  : 'Get started by adding your first staff member'
+                }
+              </p>
+            </div>
+          </Card>
+        ) : (
+          filteredStaff.map((staffMember) => (
+          <Card key={staffMember.id} className="hover:shadow-md transition-all duration-300 transform hover:scale-[1.01] animate-fade-in">
             <CardBody className="p-4">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
@@ -251,15 +302,7 @@ export const StaffManagement: React.FC = () => {
               </div>
             </CardBody>
           </Card>
-        ))}
-        
-        {staff.length === 0 && (
-          <Card>
-            <CardBody className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No staff members yet. Add your first staff member!</p>
-            </CardBody>
-          </Card>
+        ))
         )}
       </div>
 
@@ -930,10 +973,10 @@ const ChangePasswordModal: React.FC<{
         new_password: newPassword,
         user_type: 'organization_staff'
       });
-      toast.success('Password changed successfully', 'Success');
+      toast.success('Password changed successfully');
       onSuccess();
     } catch (error: any) {
-      toast.error(error.message || 'Failed to change password', 'Error');
+      toast.error(error.message || 'Failed to change password');
     } finally {
       setLoading(false);
     }

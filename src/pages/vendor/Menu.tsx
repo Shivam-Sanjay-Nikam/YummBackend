@@ -4,7 +4,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { Badge } from '../../components/ui/Badge';
-import { Plus, Edit3, UtensilsCrossed, Trash2, ToggleLeft, ToggleRight, FileSpreadsheet } from 'lucide-react';
+import { Plus, Edit3, UtensilsCrossed, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MenuItem, MenuItemStatus } from '../../types';
 import { api } from '../../services/api';
 import { supabase } from '../../lib/supabase';
@@ -19,7 +19,6 @@ export const VendorMenu: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
-  const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const user = useAuthStore((state) => state.user);
 
   useEffect(() => {
@@ -110,20 +109,10 @@ export const VendorMenu: React.FC = () => {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Menu Management</h1>
           <p className="text-sm sm:text-base text-gray-600 mt-1">Manage your menu items</p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
-          <Button
-            onClick={() => setShowCsvImportModal(true)}
-            variant="outline"
-            className="w-full sm:w-auto border-green-200 text-green-700 hover:bg-green-50 font-medium px-6 py-3 rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            <FileSpreadsheet className="w-5 h-5 mr-2" />
-            Import CSV
-          </Button>
-          <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-            Add Item
-          </Button>
-        </div>
+        <Button onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
+          <Plus className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+          Add Item
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -210,16 +199,6 @@ export const VendorMenu: React.FC = () => {
           setEditingItem(null);
           loadMenuItems();
         }}
-      />
-
-      <CsvImportModal
-        isOpen={showCsvImportModal}
-        onClose={() => setShowCsvImportModal(false)}
-        onSuccess={() => {
-          loadMenuItems();
-          setShowCsvImportModal(false);
-        }}
-        type="menu_items"
       />
     </div>
   );
@@ -443,213 +422,3 @@ const EditMenuItemModal: React.FC<{
   );
 };
 
-const CsvImportModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-  type: 'menu_items';
-}> = ({ isOpen, onClose, onSuccess, type }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [preview, setPreview] = useState<any[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
-  const { user } = useAuthStore();
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setPreview([]);
-      setErrors([]);
-      
-      // Read and preview the file
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const text = event.target?.result as string;
-        try {
-          const lines = text.split('\n').filter(line => line.trim());
-          if (lines.length > 0) {
-            const headers = lines[0].split(',').map(h => h.trim());
-            const data = lines.slice(1).map(line => {
-              const values = line.split(',').map(v => v.trim());
-              const row: any = {};
-              headers.forEach((header, index) => {
-                row[header] = values[index] || '';
-              });
-              return row;
-            });
-            setPreview(data.slice(0, 5)); // Show first 5 rows
-          }
-        } catch (error) {
-          setErrors(['Invalid CSV format']);
-        }
-      };
-      reader.readAsText(selectedFile);
-    }
-  };
-
-  const handleImport = async () => {
-    if (!file || !user?.email) {
-      toast.error('Please select a file and ensure you are logged in');
-      return;
-    }
-
-    setLoading(true);
-    setErrors([]);
-
-    try {
-      const text = await file.text();
-      
-      // Call the edge function
-      const { data: result, error } = await supabase.functions.invoke('import_csv', {
-        body: {
-          csvData: text,
-          type: type,
-          user_email: user.email
-        }
-      });
-
-      if (error) throw error;
-
-      if (result?.success) {
-        toast.success(`Successfully imported ${result.count} menu items`);
-        onSuccess();
-      } else {
-        throw new Error(result?.error || 'Import failed');
-      }
-    } catch (error: any) {
-      console.error('Import error:', error);
-      toast.error(error.message || 'Failed to import CSV');
-      setErrors([error.message || 'Import failed']);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const downloadTemplate = () => {
-    const headers = ['name', 'description', 'price'];
-    const sampleData = [
-      ['Sample Item 1', 'Delicious sample item', '50.00'],
-      ['Sample Item 2', 'Another tasty item', '75.00']
-    ];
-    
-    const csvContent = [headers, ...sampleData]
-      .map(row => row.map(field => `"${field}"`).join(','))
-      .join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'menu_items_template.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-  };
-
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Import Menu Items CSV">
-      <div className="space-y-6">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <FileSpreadsheet className="w-8 h-8 text-green-600" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Import Menu Items from CSV</h3>
-          <p className="text-sm text-gray-600">Upload a CSV file to import multiple menu items at once</p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select CSV File
-            </label>
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleFileChange}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          {preview.length > 0 && (
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-2">Preview (first 5 rows):</h4>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-xs">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      {Object.keys(preview[0]).map(key => (
-                        <th key={key} className="px-2 py-1 text-left font-medium text-gray-700">
-                          {key}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {preview.map((row, index) => (
-                      <tr key={index} className="border-t">
-                        {Object.values(row).map((value, i) => (
-                          <td key={i} className="px-2 py-1 text-gray-600">
-                            {value}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {errors.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-              <h4 className="text-sm font-medium text-red-800 mb-1">Errors:</h4>
-              <ul className="text-sm text-red-700">
-                {errors.map((error, index) => (
-                  <li key={index}>• {error}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h4 className="text-sm font-medium text-blue-800 mb-2">CSV Format Requirements:</h4>
-            <ul className="text-sm text-blue-700 space-y-1">
-              <li>• Required columns: name, price</li>
-              <li>• Optional columns: description, status</li>
-              <li>• Status values: active, inactive (defaults to inactive if not provided)</li>
-              <li>• Price should be numeric (e.g., 50.00)</li>
-            </ul>
-            <button
-              type="button"
-              onClick={downloadTemplate}
-              className="mt-2 text-sm text-blue-600 hover:text-blue-700 underline"
-            >
-              Download template CSV
-            </button>
-          </div>
-        </div>
-
-        <div className="flex space-x-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            className="flex-1"
-            disabled={loading}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            onClick={handleImport}
-            loading={loading}
-            disabled={!file || preview.length === 0}
-            className="flex-1"
-          >
-            Import Menu Items
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
-};

@@ -3,12 +3,13 @@ import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { Plus, Store, Edit2, Trash2, FileSpreadsheet, Upload, Key } from 'lucide-react';
+import { Plus, Store, Edit2, Trash2, FileSpreadsheet, Upload, Key, Search } from 'lucide-react';
 import { Vendor } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { useRealtimeVendors } from '../../hooks/useRealtimeData';
+import { PageLoadingSpinner } from '../../components/ui/LoadingSpinner';
 import toast from 'react-hot-toast';
 
 export const StaffVendors: React.FC = () => {
@@ -21,6 +22,7 @@ export const StaffVendors: React.FC = () => {
   const [showCsvImportModal, setShowCsvImportModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (user) {
@@ -81,12 +83,14 @@ export const StaffVendors: React.FC = () => {
     }
   };
 
+  // Filter vendors based on search term
+  const filteredVendors = vendors.filter(vendor => 
+    vendor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    vendor.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-      </div>
-    );
+    return <PageLoadingSpinner message="Loading vendors..." />;
   }
 
   return (
@@ -115,9 +119,41 @@ export const StaffVendors: React.FC = () => {
         </div>
       </div>
 
+      {/* Search Bar */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-300">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors duration-200" />
+          <Input
+            type="text"
+            placeholder="Search vendors by name or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 pr-4 py-2 w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+          />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-        {vendors.map((vendor) => (
-          <Card key={vendor.id} className="hover:shadow-lg transition-all duration-200 transform hover:scale-[1.02]">
+        {filteredVendors.length === 0 ? (
+          <div className="col-span-full">
+            <Card className="p-8 text-center">
+              <div className="text-gray-500">
+                <Store className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {searchTerm ? 'No vendors found' : 'No vendors'}
+                </h3>
+                <p className="text-gray-500">
+                  {searchTerm 
+                    ? `No vendors match "${searchTerm}"` 
+                    : 'Get started by adding your first vendor'
+                  }
+                </p>
+              </div>
+            </Card>
+          </div>
+        ) : (
+          filteredVendors.map((vendor) => (
+          <Card key={vendor.id} className="hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] animate-fade-in">
             <CardBody className="p-4 sm:p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="p-3 bg-orange-100 rounded-xl">
@@ -163,17 +199,9 @@ export const StaffVendors: React.FC = () => {
               </div>
             </CardBody>
           </Card>
-        ))}
+        ))
+        )}
       </div>
-
-      {vendors.length === 0 && (
-        <Card>
-          <CardBody className="text-center py-12">
-            <Store className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">No vendors yet. Add your first vendor!</p>
-          </CardBody>
-        </Card>
-      )}
 
       <AddVendorModal
         isOpen={showAddModal}

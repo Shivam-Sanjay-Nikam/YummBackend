@@ -251,61 +251,80 @@ export const StaffEmployees: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredAndSortedEmployees.map((employee) => (
-                    <tr key={employee.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-600">{employee.email}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-green-600">
-                          ₹{employee.balance.toFixed(2)}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleUpdateBalance(employee)}
-                            className="text-green-600 border-green-200 hover:bg-green-50"
-                          >
-                            <IndianRupee className="w-4 h-4 mr-1" />
-                            Balance
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(employee)}
-                            className="text-blue-600 border-blue-200 hover:bg-blue-50"
-                          >
-                            <Edit2 className="w-4 h-4 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleChangePassword(employee)}
-                            className="text-green-600 border-green-200 hover:bg-green-50"
-                          >
-                            <Key className="w-4 h-4 mr-1" />
-                            Password
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDelete(employee)}
-                            className="text-red-600 border-red-200 hover:bg-red-50"
-                          >
-                            <Trash2 className="w-4 h-4 mr-1" />
-                            Delete
-                          </Button>
+                  {filteredAndSortedEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-12 text-center">
+                        <div className="text-gray-500">
+                          <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                          <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {state.searchTerm ? 'No employees found' : 'No employees'}
+                          </h3>
+                          <p className="text-gray-500">
+                            {state.searchTerm 
+                              ? `No employees match "${state.searchTerm}"` 
+                              : 'Get started by adding your first employee'
+                            }
+                          </p>
                         </div>
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    filteredAndSortedEmployees.map((employee) => (
+                      <tr key={employee.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-600">{employee.email}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm font-medium text-green-600">
+                            ₹{employee.balance.toFixed(2)}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleUpdateBalance(employee)}
+                              className="text-green-600 border-green-200 hover:bg-green-50"
+                            >
+                              <IndianRupee className="w-4 h-4 mr-1" />
+                              Balance
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(employee)}
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                            >
+                              <Edit2 className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleChangePassword(employee)}
+                              className="text-green-600 border-green-200 hover:bg-green-50"
+                            >
+                              <Key className="w-4 h-4 mr-1" />
+                              Password
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDelete(employee)}
+                              className="text-red-600 border-red-200 hover:bg-red-50"
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -315,85 +334,84 @@ export const StaffEmployees: React.FC = () => {
 
       {/* Mobile Card View */}
       <div className="lg:hidden space-y-4">
-        {filteredAndSortedEmployees.map((employee) => (
-          <Card key={employee.id} className="hover:shadow-md transition-shadow">
-            <CardBody className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                    <Users className="w-5 h-5 text-blue-600" />
+        {filteredAndSortedEmployees.length === 0 ? (
+          <Card className="p-8 text-center">
+            <div className="text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {state.searchTerm ? 'No employees found' : 'No employees'}
+              </h3>
+              <p className="text-gray-500">
+                {state.searchTerm 
+                  ? `No employees match "${state.searchTerm}"` 
+                  : 'Get started by adding your first employee'
+                }
+              </p>
+            </div>
+          </Card>
+        ) : (
+          filteredAndSortedEmployees.map((employee) => (
+            <Card key={employee.id} className="hover:shadow-md transition-shadow">
+              <CardBody className="p-4">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Users className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900 text-base">{employee.name}</h3>
+                      <p className="text-sm text-gray-600">{employee.email}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-900 text-base">{employee.name}</h3>
-                    <p className="text-sm text-gray-600">{employee.email}</p>
+                  <div className="text-right">
+                    <div className="text-lg font-bold text-green-600">
+                      ₹{employee.balance.toFixed(2)}
+                    </div>
+                    <div className="text-xs text-gray-500">Balance</div>
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-600">
-                    ₹{employee.balance.toFixed(2)}
-                  </div>
-                  <div className="text-xs text-gray-500">Balance</div>
+                
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleUpdateBalance(employee)}
+                    className="flex-1 min-w-0 text-green-600 border-green-200 hover:bg-green-50 text-xs py-2"
+                  >
+                    <IndianRupee className="w-4 h-4 mr-1" />
+                    Balance
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleEdit(employee)}
+                    className="flex-1 min-w-0 text-blue-600 border-blue-200 hover:bg-blue-50 text-xs py-2"
+                  >
+                    <Edit2 className="w-4 h-4 mr-1" />
+                    Edit
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleChangePassword(employee)}
+                    className="flex-1 min-w-0 text-green-600 border-green-200 hover:bg-green-50 text-xs py-2"
+                  >
+                    <Key className="w-4 h-4 mr-1" />
+                    Password
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(employee)}
+                    className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 text-xs py-2"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Delete
+                  </Button>
                 </div>
-              </div>
-              
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleUpdateBalance(employee)}
-                  className="flex-1 min-w-0 text-green-600 border-green-200 hover:bg-green-50 text-xs py-2"
-                >
-                  <IndianRupee className="w-4 h-4 mr-1" />
-                  Balance
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleEdit(employee)}
-                  className="flex-1 min-w-0 text-blue-600 border-blue-200 hover:bg-blue-50 text-xs py-2"
-                >
-                  <Edit2 className="w-4 h-4 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleChangePassword(employee)}
-                  className="flex-1 min-w-0 text-green-600 border-green-200 hover:bg-green-50 text-xs py-2"
-                >
-                  <Key className="w-4 h-4 mr-1" />
-                  Password
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDelete(employee)}
-                  className="flex-1 min-w-0 text-red-600 border-red-200 hover:bg-red-50 text-xs py-2"
-                >
-                  <Trash2 className="w-4 h-4 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </CardBody>
-          </Card>
-        ))}
-        
-        {filteredAndSortedEmployees.length === 0 && employees.length > 0 && (
-          <Card>
-            <CardBody className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No employees found matching your search criteria.</p>
-            </CardBody>
-          </Card>
-        )}
-        
-        {employees.length === 0 && (
-          <Card>
-            <CardBody className="text-center py-12">
-              <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No employees yet. Add your first employee!</p>
-            </CardBody>
-          </Card>
+              </CardBody>
+            </Card>
+          ))
         )}
       </div>
 
