@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Card, CardBody } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Badge } from '../../components/ui/Badge';
+import { Input } from '../../components/ui/Input';
 import { MenuItemCard } from '../../components/ui/MenuItemCard';
 import { CartSidebar } from '../../components/ui/CartSidebar';
-import { Store, ShoppingCart, Plus, ArrowLeft } from 'lucide-react';
+import { Store, ShoppingCart, Plus, ArrowLeft, Search } from 'lucide-react';
 import { Vendor, MenuItem } from '../../types';
 import { api } from '../../services/api';
 import { useCartStore } from '../../store/cartStore';
@@ -19,6 +20,7 @@ export const EmployeeBrowse: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const { getTotalItems } = useCartStore();
 
   useEffect(() => {
@@ -57,6 +59,7 @@ export const EmployeeBrowse: React.FC = () => {
 
   const loadMenuItems = async (vendor: Vendor) => {
     setSelectedVendor(vendor);
+    setSearchTerm(''); // Clear search when switching vendors
     try {
       const { data, error } = await api.data.getMenuItems(vendor.id);
       if (error) throw error;
@@ -66,6 +69,21 @@ export const EmployeeBrowse: React.FC = () => {
       console.error('Error loading menu items:', error);
     }
   };
+
+  // Filter menu items based on search term
+  const filteredMenuItems = useMemo(() => {
+    const activeItems = menuItems.filter((item) => item.status === 'active');
+    
+    if (!searchTerm) {
+      return activeItems;
+    }
+    
+    const searchLower = searchTerm.toLowerCase();
+    return activeItems.filter((item) =>
+      item.name.toLowerCase().includes(searchLower) ||
+      (item.description && item.description.toLowerCase().includes(searchLower))
+    );
+  }, [menuItems, searchTerm]);
 
   const handleCheckout = () => {
     setIsCartOpen(false);
@@ -152,27 +170,49 @@ export const EmployeeBrowse: React.FC = () => {
             <div className="w-32"></div> {/* Spacer for alignment */}
           </div>
 
+          {/* Search Bar */}
+          <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all duration-300 mb-6">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5 transition-colors duration-200" />
+              <Input
+                type="text"
+                placeholder="Search menu items by name or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 pr-4 py-2 w-full border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 hover:border-gray-400"
+              />
+            </div>
+          </div>
+
           {/* Menu Items Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {menuItems
-              .filter((item) => item.status === 'active')
-              .map((item) => (
+            {filteredMenuItems.length === 0 ? (
+              <div className="col-span-full">
+                <Card className="p-8 text-center">
+                  <div className="text-gray-500">
+                    <ShoppingCart className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">
+                      {searchTerm ? 'No menu items found' : 'No items available'}
+                    </h3>
+                    <p className="text-gray-500">
+                      {searchTerm 
+                        ? `No menu items match "${searchTerm}"` 
+                        : 'No items available at this time'
+                      }
+                    </p>
+                  </div>
+                </Card>
+              </div>
+            ) : (
+              filteredMenuItems.map((item) => (
                 <MenuItemCard
                   key={item.id}
                   item={item}
                   onQuantityChange={handleQuantityChange}
                 />
-              ))}
+              ))
+            )}
           </div>
-
-          {menuItems.filter((item) => item.status === 'active').length === 0 && (
-            <Card>
-              <CardBody className="text-center py-12">
-                <ShoppingCart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">No items available at this time</p>
-              </CardBody>
-            </Card>
-          )}
         </>
       )}
 
