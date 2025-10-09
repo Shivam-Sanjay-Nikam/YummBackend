@@ -15,6 +15,7 @@ export const EmployeeOrders: React.FC = () => {
   const { user, refreshUser } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentView, setCurrentView] = useState<'active' | 'past'>('active');
 
   useEffect(() => {
     if (user) {
@@ -162,6 +163,17 @@ export const EmployeeOrders: React.FC = () => {
     return 'Request Cancel';
   };
 
+  // Filter orders based on current view
+  const filteredOrders = orders.filter(order => {
+    if (currentView === 'active') {
+      // Show orders that are NOT cancelled or given
+      return order.status !== 'cancelled' && order.status !== 'given';
+    } else {
+      // Show orders that ARE cancelled or given
+      return order.status === 'cancelled' || order.status === 'given';
+    }
+  });
+
   const getStatusBadge = (status: OrderStatus) => {
     const statusConfig = {
       placed: { variant: 'primary' as const, icon: Clock, text: 'Placed' },
@@ -199,11 +211,35 @@ export const EmployeeOrders: React.FC = () => {
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Orders</h1>
             <p className="text-sm sm:text-base text-gray-600 mt-1">Track your order history</p>
           </div>
+          <div className="mt-4 sm:mt-0">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setCurrentView('active')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'active'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Active Orders
+              </button>
+              <button
+                onClick={() => setCurrentView('past')}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                  currentView === 'past'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                Past Orders
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="space-y-3 sm:space-y-4">
-        {orders.map((order) => (
+        {filteredOrders.map((order) => (
           <Card key={order.id} className="overflow-hidden">
             <CardBody className="p-4 sm:p-6">
               {/* Mobile-first header layout */}
@@ -232,7 +268,7 @@ export const EmployeeOrders: React.FC = () => {
                     ₹{order.total_amount.toFixed(2)}
                   </p>
                   <div className="flex space-x-2">
-                    {(order.status === 'placed' || order.status === 'preparing' || order.status === 'prepared') && (
+                    {currentView === 'active' && (order.status === 'placed' || order.status === 'preparing' || order.status === 'prepared') && (
                       <Button
                         size="sm"
                         variant={canCancelOrder(order) ? "danger" : "secondary"}
@@ -276,18 +312,27 @@ export const EmployeeOrders: React.FC = () => {
       </div>
 
 
-      {orders.length === 0 && (
+      {filteredOrders.length === 0 && (
         <Card>
           <CardBody className="text-center py-8 sm:py-12 px-4">
             <ShoppingBag className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">No orders yet</h3>
-            <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">Start ordering from vendors</p>
-            <Button 
-              onClick={() => (window.location.href = '/employee/dashboard')}
-              className="w-full sm:w-auto"
-            >
-              Browse Vendors
-            </Button>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              {currentView === 'active' ? 'No active orders' : 'No past orders'}
+            </h3>
+            <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6">
+              {currentView === 'active' 
+                ? 'You have no orders in progress at the moment' 
+                : 'You have no completed or cancelled orders yet'
+              }
+            </p>
+            {currentView === 'active' && (
+              <Button 
+                onClick={() => (window.location.href = '/employee/dashboard')}
+                className="w-full sm:w-auto"
+              >
+                Browse Vendors
+              </Button>
+            )}
           </CardBody>
         </Card>
       )}
