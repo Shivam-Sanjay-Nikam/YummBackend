@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { authenticateUser, createUser } from './auth';
 import { useAuthStore } from '../store/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sjtttdnqjgwggczhwzad.supabase.co/functions/v1';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://zylgjcnwazyaudhdnakc.supabase.co/functions/v1';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -123,39 +123,35 @@ export const api = {
           return { data: null, error: { message: 'User not authenticated' } };
         }
 
-        // Check if email already exists
-        const { data: existingEmployee } = await supabase
-          .from('employees')
-          .select('email')
-          .eq('email', data.email)
-          .eq('org_id', user.org_id);
-
-        if (existingEmployee && existingEmployee.length > 0) {
-          return { data: null, error: { message: 'Email already exists' } };
-        }
-
-        // Create employee using direct database call
-        const { data: employee, error } = await supabase
-          .from('employees')
-          .insert({
-            org_id: user.org_id,
+        // Call the edge function with user email for authentication
+        const { data: result, error } = await supabase.functions.invoke('create_employee', {
+          body: {
             name: data.name,
             email: data.email,
-            password: data.password, // Note: In production, hash this password
+            password: data.password,
             balance: data.balance || 0,
             phone_number: data.phone_number,
-            special_number: data.special_number
-          })
-          .select()
-          .single();
+            special_number: data.special_number,
+            user_email: user.email
+          }
+        });
 
         if (error) {
           console.error('Employee creation error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            status: error.status,
+            statusText: error.statusText
+          });
           return { data: null, error: { message: error.message || 'Failed to create employee' } };
         }
 
+        if (!result || result.error) {
+          return { data: null, error: { message: result?.error || 'Failed to create employee' } };
+        }
+
         return {
-          data: employee,
+          data: result,
           error: null
         };
       } catch (error: any) {
