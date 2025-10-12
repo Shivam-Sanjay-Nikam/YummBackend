@@ -22,86 +22,44 @@ apiClient.interceptors.request.use(async (config: any) => {
 
 export const api = {
   auth: {
+    // Use Edge Function for organization registration
     registerOrganization: async (data: { 
       org_name: string; 
-      staff_name?: string; // Made optional
+      staff_name?: string;
       staff_email: string; 
       staff_password: string;
       staff_phone?: string;
       latitude?: number;
       longitude?: number;
-      special_number: string; // Made required
+      special_number: string;
     }) => {
       try {
-        // Check if email already exists
-        const { data: existingStaff } = await supabase
-          .from('organization_staff')
-          .select('email')
-          .eq('email', data.staff_email);
-
-        if (existingStaff && existingStaff.length > 0) {
-          return { error: { message: 'Email already exists' } };
-        }
-
-        // Check if special number already exists
-        const { data: existingOrg } = await supabase
-          .from('organizations')
-          .select('special_number')
-          .eq('special_number', data.special_number);
-
-        if (existingOrg && existingOrg.length > 0) {
-          return { error: { message: 'Special number already exists. Please choose a different 6-digit number.' } };
-        }
-
-        // Create organization first
-        const { data: organization, error: orgError } = await supabase
-          .from('organizations')
-          .insert({
-            name: data.org_name,
+        const { data: result, error } = await supabase.functions.invoke('register_organization', {
+          body: {
+            org_name: data.org_name,
+            staff_name: data.staff_name || 'Admin',
+            staff_email: data.staff_email,
+            staff_password: data.staff_password,
+            staff_phone: data.staff_phone,
             latitude: data.latitude,
             longitude: data.longitude,
             special_number: data.special_number
-          })
-          .select()
-          .single();
+          }
+        });
 
-        if (orgError || !organization) {
-          return { error: { message: `Failed to create organization: ${orgError?.message}` } };
+        if (error) {
+          return { error: { message: error.message } };
         }
 
-        // Create staff member using custom auth
-        const authResult = await createUser(
-          data.staff_email,
-          data.staff_password,
-          data.staff_name || 'Admin',
-          'organization_staff',
-          organization.id,
-          {
-            phone_number: data.staff_phone
-          }
-        );
-
-        if (!authResult.success) {
-          // Clean up organization if staff creation failed
-          await supabase.from('organizations').delete().eq('id', organization.id);
-          return { error: { message: authResult.error } };
+        if (!result.success) {
+          return { error: { message: result.error } };
         }
 
         return {
           data: {
-            organization: {
-              id: organization.id,
-              name: organization.name,
-              special_number: organization.special_number,
-              created_at: organization.created_at
-            },
-            staff: {
-              id: authResult.user!.id,
-              name: authResult.user!.name,
-              email: authResult.user!.email,
-              phone_number: authResult.user!.phone_number,
-              created_at: new Date().toISOString()
-            }
+            organization: result.organization,
+            staff: result.staff,
+            auth: result.auth
           }
         };
 
@@ -111,12 +69,35 @@ export const api = {
       }
     },
 
+    // Use Edge Function for login
     login: async (email: string, password: string) => {
-      const result = await authenticateUser(email, password);
-      if (result.success) {
-        return { data: { user: result.user }, error: null };
-      } else {
-        return { data: null, error: { message: result.error } };
+      try {
+        const { data: result, error } = await supabase.functions.invoke('auth_login', {
+          body: {
+            email,
+            password,
+            action: 'signin'
+          }
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        if (!result.success) {
+          return { data: null, error: { message: result.error } };
+        }
+
+        return { 
+          data: { 
+            user: result.user,
+            session: result.session
+          }, 
+          error: null 
+        };
+      } catch (error: any) {
+        console.error('Login error:', error);
+        return { data: null, error: { message: 'Login failed' } };
       }
     },
 
@@ -664,10 +645,22 @@ export const api = {
         throw new Error('User not authenticated');
       }
       
-      return apiClient.post('/place_order', {
-        ...data,
-        user_email: user.email
+      const { data: result, error } = await supabase.functions.invoke('place_order', {
+        body: {
+          ...data,
+          user_email: user.email
+        }
       });
+
+      if (error) {
+        throw new Error(error.message);
+      }
+
+      if (!result.success) {
+        throw new Error(result.error);
+      }
+
+      return result;
     },
 
     cancelOrderRequest: async (data: { 
@@ -680,12 +673,22 @@ export const api = {
       }
       
       try {
-        const response = await apiClient.post('/cancel_order_request', {
-          ...data,
-          user_email: user.email
+        const { data: result, error } = await supabase.functions.invoke('cancel_order_request', {
+          body: {
+            ...data,
+            user_email: user.email
+          }
         });
-        
-        return { data: response.data, error: null };
+
+        if (error) {
+          return { data: null, error: error.message };
+        }
+
+        if (!result.success) {
+          return { data: null, error: result.error };
+        }
+
+        return { data: result, error: null };
       } catch (error: any) {
         console.error('Cancel order request error:', error);
         
