@@ -1,107 +1,73 @@
-import axios from 'axios';
-import { supabase } from '../lib/supabase';
-import { authenticateUser, createUser } from './auth';
+import { supabase } from '../lib/supabaseClient';
+import { getSession } from '../lib/auth';
 import { useAuthStore } from '../store/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://sjtttdnqjgwggczhwzad.supabase.co/functions/v1';
+// All API calls now use Supabase Edge Functions directly
 
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// Session management is now handled by the auth helper
 
-// Custom auth interceptor - we'll handle this differently since we're not using Supabase Auth
-apiClient.interceptors.request.use(async (config: any) => {
-  // Add Supabase function headers
-  config.headers['apikey'] = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  config.headers['Authorization'] = `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
-  return config;
-});
+// Simple session validation using the new auth helper
+const validateSession = async () => {
+  const session = await getSession();
+  if (!session) {
+    throw new Error('No valid session found. Please log in again.');
+  }
+  return session;
+};
+
+// Helper function to get session headers for API calls
+const getSessionHeaders = async () => {
+  const session = await validateSession();
+  return {
+    'Authorization': `Bearer ${session.access_token}`,
+    'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
+  };
+};
+
+// Session cache is no longer needed with the new auth helper
+
+// Session cache will be initialized when needed
 
 export const api = {
   auth: {
+    // Use Edge Function for organization registration
     registerOrganization: async (data: { 
       org_name: string; 
-      staff_name?: string; // Made optional
+      staff_name?: string;
       staff_email: string; 
       staff_password: string;
       staff_phone?: string;
       latitude?: number;
       longitude?: number;
-      special_number: string; // Made required
+      special_number: string;
     }) => {
       try {
-        // Check if email already exists
-        const { data: existingStaff } = await supabase
-          .from('organization_staff')
-          .select('email')
-          .eq('email', data.staff_email);
-
-        if (existingStaff && existingStaff.length > 0) {
-          return { error: { message: 'Email already exists' } };
-        }
-
-        // Check if special number already exists
-        const { data: existingOrg } = await supabase
-          .from('organizations')
-          .select('special_number')
-          .eq('special_number', data.special_number);
-
-        if (existingOrg && existingOrg.length > 0) {
-          return { error: { message: 'Special number already exists. Please choose a different 6-digit number.' } };
-        }
-
-        // Create organization first
-        const { data: organization, error: orgError } = await supabase
-          .from('organizations')
-          .insert({
-            name: data.org_name,
+        const { data: result, error } = await supabase.functions.invoke('register_organization', {
+          body: {
+            org_name: data.org_name,
+            staff_name: data.staff_name || 'Admin',
+            staff_email: data.staff_email,
+            staff_password: data.staff_password,
+            staff_phone: data.staff_phone,
             latitude: data.latitude,
             longitude: data.longitude,
             special_number: data.special_number
-          })
-          .select()
-          .single();
+          }
+        });
 
-        if (orgError || !organization) {
-          return { error: { message: `Failed to create organization: ${orgError?.message}` } };
+        if (error) {
+          return { error: { message: error.message } };
         }
 
-        // Create staff member using custom auth
-        const authResult = await createUser(
-          data.staff_email,
-          data.staff_password,
-          data.staff_name || 'Admin',
-          'organization_staff',
-          organization.id,
-          {
-            phone_number: data.staff_phone
-          }
-        );
-
-        if (!authResult.success) {
-          // Clean up organization if staff creation failed
-          await supabase.from('organizations').delete().eq('id', organization.id);
-          return { error: { message: authResult.error } };
+        if (!result.success) {
+          return { error: { message: result.error } };
         }
 
         return {
           data: {
-            organization: {
-              id: organization.id,
-              name: organization.name,
-              special_number: organization.special_number,
-              created_at: organization.created_at
-            },
-            staff: {
-              id: authResult.user!.id,
-              name: authResult.user!.name,
-              email: authResult.user!.email,
-              phone_number: authResult.user!.phone_number,
-              created_at: new Date().toISOString()
-            }
+            organization: result.organization,
+            staff: result.staff,
+            auth: result.auth
           }
         };
 
@@ -111,52 +77,98 @@ export const api = {
       }
     },
 
+    // Use backend auth_login Edge Function for proper authentication
     login: async (email: string, password: string) => {
-      const result = await authenticateUser(email, password);
-      if (result.success) {
-        return { data: { user: result.user }, error: null };
-      } else {
-        return { data: null, error: { message: result.error } };
+      try {
+        // Call the backend auth_login function (this handles Supabase Auth internally)
+        const { data: result, error } = await supabase.functions.invoke('auth_login', {
+          body: {
+            email,
+            password,
+            action: 'signin'
+          }
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        if (!result.success) {
+          return { data: null, error: { message: result.error } };
+        }
+
+        // The backend auth_login function returns the session tokens
+        // We need to set the session in the frontend Supabase client
+        // BUT we do it in a way that doesn't trigger refresh token issues
+        if (result.session) {
+          // Use the auth helper to set session without triggering refresh storms
+          const { setSessionSafely } = await import('../lib/auth');
+          await setSessionSafely(result.session);
+        }
+
+        return { 
+          data: { 
+            user: result.user,
+            session: result.session
+          }, 
+          error: null 
+        };
+
+      } catch (error: any) {
+        console.error('Login error:', error);
+        return { data: null, error: { message: 'Login failed' } };
       }
     },
 
     logout: async () => {
-      // For custom auth, logout is handled by clearing local state
-      return { error: null };
+      try {
+        // Use the auth helper for sign out
+        const { signOut } = await import('../lib/auth');
+        await signOut();
+        return { error: null };
+      } catch (error: any) {
+        console.error('Logout error:', error);
+        return { error: { message: 'Logout failed' } };
+      }
     },
   },
 
   staff: {
-    createEmployee: async (data: { 
-      name: string; 
-      email: string; 
-      password: string; 
+    createEmployee: async (data: {
+      name: string;
+      email: string;
+      password: string;
       balance?: number;
       phone_number?: string;
       special_number?: string;
     }) => {
       try {
-        // Get current user for authentication
-        const { user } = useAuthStore.getState();
-        if (!user?.email) {
-          return { data: null, error: { message: 'User not authenticated' } };
-        }
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
+        
+        const requestBody = {
+          name: data.name,
+          email: data.email,
+          password: data.password,
+          balance: data.balance || 0,
+          phone_number: data.phone_number,
+          special_number: data.special_number
+        };
 
-        // Call the edge function with user email for authentication
+        
+        // Call the edge function with proper authentication headers
         const { data: result, error } = await supabase.functions.invoke('create_employee', {
-          body: {
-            name: data.name,
-            email: data.email,
-            password: data.password,
-            balance: data.balance || 0,
-            phone_number: data.phone_number,
-            special_number: data.special_number,
-            user_email: user.email
-          }
+          body: requestBody,
+          headers
         });
 
         if (error) {
           console.error('Employee creation error:', error);
+          console.error('Error details:', {
+            message: error.message,
+            status: error.status,
+            statusText: error.statusText
+          });
           return { data: null, error: { message: error.message || 'Failed to create employee' } };
         }
 
@@ -183,13 +195,10 @@ export const api = {
       longitude?: number;
     }) => {
       try {
-        // Get current user for authentication
-        const { user } = useAuthStore.getState();
-        if (!user?.email) {
-          return { data: null, error: { message: 'User not authenticated' } };
-        }
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
 
-        // Call the edge function with user email for authentication
+        // Call the edge function with proper authentication headers
         const { data: result, error } = await supabase.functions.invoke('create_vendor', {
           body: {
             name: data.name,
@@ -197,9 +206,9 @@ export const api = {
             password: data.password,
             phone_number: data.phone_number,
             latitude: data.latitude,
-            longitude: data.longitude,
-            user_email: user.email
-          }
+            longitude: data.longitude
+          },
+          headers
         });
 
         if (error) {
@@ -226,19 +235,16 @@ export const api = {
       new_balance: number;
     }) => {
       try {
-        // Get current user for authentication
-        const { user } = useAuthStore.getState();
-        if (!user?.email) {
-          return { data: null, error: { message: 'User not authenticated' } };
-        }
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
 
-        // Call the edge function with user email for authentication
+        // Call the edge function with proper authentication headers
         const { data: result, error } = await supabase.functions.invoke('update_employee_balance', {
           body: {
             employee_id: data.employee_id,
-            new_balance: data.new_balance,
-            user_email: user.email
-          }
+            new_balance: data.new_balance
+          },
+          headers
         });
 
         if (error) {
@@ -307,18 +313,15 @@ export const api = {
 
     deleteEmployee: async (data: { employee_id: string }) => {
       try {
-        // Get current user for authentication
-        const { user } = useAuthStore.getState();
-        if (!user?.email) {
-          return { data: null, error: { message: 'User not authenticated' } };
-        }
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
 
-        // Call the edge function with user email for authentication
+        // Call the edge function with proper authentication headers
         const { data: result, error } = await supabase.functions.invoke('delete_employee', {
           body: {
-            employee_id: data.employee_id,
-            user_email: user.email
-          }
+            employee_id: data.employee_id
+          },
+          headers
         });
 
         if (error) {
@@ -393,25 +396,19 @@ export const api = {
 
     deleteVendor: async (data: { vendor_id: string }) => {
       try {
-        // Get current user for authentication
-        const { user } = useAuthStore.getState();
-        if (!user?.email) {
-          console.error('User not authenticated for vendor deletion');
-          return { data: null, error: { message: 'User not authenticated' } };
-        }
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
 
         console.log('Attempting to delete vendor:', { 
-          vendor_id: data.vendor_id, 
-          user_email: user.email,
-          user_id: user.id 
+          vendor_id: data.vendor_id
         });
 
-        // Call the edge function with user email for authentication
+        // Call the edge function with proper authentication headers
         const { data: result, error } = await supabase.functions.invoke('delete_vendor', {
           body: {
-            vendor_id: data.vendor_id,
-            user_email: user.email
-          }
+            vendor_id: data.vendor_id
+          },
+          headers
         });
 
         console.log('Delete vendor response:', { result, error });
@@ -659,33 +656,56 @@ export const api = {
       vendor_id: string; 
       items: Array<{ menu_item_id: string; quantity: number }> 
     }) => {
-      const { user } = useAuthStore.getState();
-      if (!user?.email) {
-        throw new Error('User not authenticated');
+      try {
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('place_order', {
+          body: {
+            ...data
+          },
+          headers
+        });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        if (!result.success) {
+          throw new Error(result.error);
+        }
+
+        return result;
+      } catch (error: any) {
+        console.error('Place order error:', error);
+        throw new Error(error.message || 'Failed to place order');
       }
-      
-      return apiClient.post('/place_order', {
-        ...data,
-        user_email: user.email
-      });
     },
 
     cancelOrderRequest: async (data: { 
       order_id: string; 
       reason?: string;
     }) => {
-      const { user } = useAuthStore.getState();
-      if (!user?.email) {
-        return { data: null, error: 'User not authenticated' };
-      }
-      
       try {
-        const response = await apiClient.post('/cancel_order_request', {
-          ...data,
-          user_email: user.email
-        });
+        // Get session headers for authentication
+        const headers = await getSessionHeaders();
         
-        return { data: response.data, error: null };
+        const { data: result, error } = await supabase.functions.invoke('cancel_order_request', {
+          body: {
+            ...data
+          },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: error.message };
+        }
+
+        if (!result.success) {
+          return { data: null, error: result.error };
+        }
+
+        return { data: result, error: null };
       } catch (error: any) {
         console.error('Cancel order request error:', error);
         
@@ -722,10 +742,17 @@ export const api = {
         return { data: null, error: 'Not authenticated' };
       }
       
-      return apiClient.post('/vendor_add_menu_item', {
-        user_email: user.email,
-        ...data
+      const { data: result, error } = await supabase.functions.invoke('vendor_add_menu_item', {
+        body: {
+          ...data
+        }
       });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
     },
 
     handleCancelRequest: async (data: { 
@@ -738,10 +765,17 @@ export const api = {
         throw new Error('User not authenticated');
       }
       
-      return apiClient.post('/handle_cancel_request', {
-        ...data,
-        user_email: user.email
+      const { data: result, error } = await supabase.functions.invoke('handle_cancel_request', {
+        body: {
+          ...data
+        }
       });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
     },
 
     updateOrderStatus: async (data: { 
@@ -753,10 +787,17 @@ export const api = {
         throw new Error('User not authenticated');
       }
       
-      return apiClient.post('/update_order_status', {
-        ...data,
-        user_email: user.email
+      const { data: result, error } = await supabase.functions.invoke('update_order_status', {
+        body: {
+          ...data
+        }
       });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
     },
 
     deleteOrder: async (data: { 
@@ -767,10 +808,17 @@ export const api = {
         throw new Error('User not authenticated');
       }
       
-      return apiClient.post('/delete_order', {
-        ...data,
-        user_email: user.email
+      const { data: result, error } = await supabase.functions.invoke('delete_order', {
+        body: {
+          ...data
+        }
       });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
     },
 
     updateMenuItem: async (data: {
@@ -786,10 +834,17 @@ export const api = {
         return { data: null, error: 'Not authenticated' };
       }
       
-      return apiClient.put('/update_menu_item', {
-        user_email: user.email,
-        ...data
+      const { data: result, error } = await supabase.functions.invoke('update_menu_item', {
+        body: {
+          ...data
+        }
       });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
     },
 
     deleteMenuItem: async (data: {
@@ -800,326 +855,181 @@ export const api = {
         return { data: null, error: 'Not authenticated' };
       }
       
-      return apiClient.delete('/delete_menu_item', {
-        data: {
-          user_email: user.email,
+      const { data: result, error } = await supabase.functions.invoke('delete_menu_item', {
+        body: {
           ...data
         }
       });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
     },
   },
 
-  // Generic data fetching methods
+  // Generic data fetching methods - ALL USE BACKEND FUNCTIONS
   data: {
     getVendors: async (userEmail: string) => {
       if (!userEmail) return { data: null, error: 'Not authenticated' };
+      
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_vendors', {
+          body: { user_email: userEmail },
+          headers
+        });
 
-      // Try to get user's org_id from employees table first (most common for employee access)
-      let { data: userRecord, error: userError } = await supabase
-        .from('employees')
-        .select('org_id')
-        .eq('email', userEmail)
-        .maybeSingle();
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
 
-      // If not found in employees, try vendors table
-      if (!userRecord && !userError) {
-        const { data: vendorRecord, error: vendorError } = await supabase
-          .from('vendors')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = vendorRecord;
-        userError = vendorError;
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching vendors:', error);
+        return { data: null, error: { message: 'Failed to fetch vendors' } };
       }
-
-      // If not found in employees or vendors, try organization_staff (for staff access)
-      if (!userRecord && !userError) {
-        const { data: staffRecord, error: staffError } = await supabase
-          .from('organization_staff')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = staffRecord;
-        userError = staffError;
-      }
-
-      if (!userRecord) return { data: null, error: 'User not found in any role table' };
-
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('*')
-        .eq('org_id', userRecord.org_id);
-      return { data, error };
     },
 
     getMenuItems: async (vendorId: string) => {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('vendor_id', vendorId)
-        .eq('status', 'active');
-      return { data, error };
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_menu_items', {
+          body: { vendor_id: vendorId },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching menu items:', error);
+        return { data: null, error: { message: 'Failed to fetch menu items' } };
+      }
     },
 
     getOrders: async (userRole: string, userEmail: string) => {
       if (!userEmail) return { data: null, error: 'Not authenticated' };
 
-      let query = supabase.from('orders').select(`
-        *,
-        order_items(*, menu_items(*)),
-        employees(name, email),
-        vendors(name)
-      `);
-
-      if (userRole === 'employee') {
-        // Get employee's user_id from employees table
-        const { data: employee } = await supabase
-          .from('employees')
-          .select('id')
-          .eq('email', userEmail)
-          .single();
-        if (employee) {
-          query = query.eq('employee_id', employee.id);
-        }
-      } else if (userRole === 'vendor') {
-        // Get vendor's user_id from vendors table
-        const { data: vendor } = await supabase
-          .from('vendors')
-          .select('id')
-          .eq('email', userEmail)
-          .single();
-        if (vendor) {
-          query = query.eq('vendor_id', vendor.id);
-        }
-      } else if (userRole === 'organization_staff') {
-        // Get organization staff's org_id and filter orders by organization
-        const { data: staffRecord } = await supabase
-          .from('organization_staff')
-          .select('org_id')
-          .eq('email', userEmail)
-          .single();
-        
-        if (staffRecord) {
-          // Filter orders by organization through employees and vendors
-          query = query.or(`employees.org_id.eq.${staffRecord.org_id},vendors.org_id.eq.${staffRecord.org_id}`);
-        }
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: true });
-      return { data, error };
-    },
-
-    getEmployees: async (userEmail: string) => {
-      if (!userEmail) return { data: null, error: 'Not authenticated' };
-
-      // Try to get user's org_id from organization_staff first
-      let { data: userRecord, error: userError } = await supabase
-        .from('organization_staff')
-        .select('org_id')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      // If not found in organization_staff, try employees table
-      if (!userRecord && !userError) {
-        const { data: employeeRecord, error: employeeError } = await supabase
-          .from('employees')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = employeeRecord;
-        userError = employeeError;
-      }
-
-      // If not found in employees, try vendors table
-      if (!userRecord && !userError) {
-        const { data: vendorRecord, error: vendorError } = await supabase
-          .from('vendors')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = vendorRecord;
-        userError = vendorError;
-      }
-
-      if (!userRecord) return { data: null, error: 'User not found' };
-
-      const { data, error } = await supabase
-        .from('employees')
-        .select('*')
-        .eq('org_id', userRecord.org_id);
-      return { data, error };
-    },
-
-    getVendorsForStaff: async (userEmail: string) => {
-      if (!userEmail) return { data: null, error: 'Not authenticated' };
-
-      // Try to get user's org_id from organization_staff first (for staff access)
-      let { data: userRecord, error: userError } = await supabase
-        .from('organization_staff')
-        .select('org_id')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      // If not found in organization_staff, try employees table
-      if (!userRecord && !userError) {
-        const { data: employeeRecord, error: employeeError } = await supabase
-          .from('employees')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = employeeRecord;
-        userError = employeeError;
-      }
-
-      // If not found in employees, try vendors table
-      if (!userRecord && !userError) {
-        const { data: vendorRecord, error: vendorError } = await supabase
-          .from('vendors')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = vendorRecord;
-        userError = vendorError;
-      }
-
-      if (!userRecord) return { data: null, error: 'User not found' };
-
-      const { data, error } = await supabase
-        .from('vendors')
-        .select('*')
-        .eq('org_id', userRecord.org_id);
-
-      return { data, error };
-    },
-
-    getOrganizationStaff: async (userEmail: string) => {
-      if (!userEmail) return { data: null, error: 'Not authenticated' };
-
-      // Try to get user's org_id from organization_staff first
-      let { data: userRecord, error: userError } = await supabase
-        .from('organization_staff')
-        .select('org_id')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      // If not found in organization_staff, try employees table
-      if (!userRecord && !userError) {
-        const { data: employeeRecord, error: employeeError } = await supabase
-          .from('employees')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = employeeRecord;
-        userError = employeeError;
-      }
-
-      // If not found in employees, try vendors table
-      if (!userRecord && !userError) {
-        const { data: vendorRecord, error: vendorError } = await supabase
-          .from('vendors')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = vendorRecord;
-        userError = vendorError;
-      }
-
-      if (!userRecord) return { data: null, error: 'User not found' };
-
-      const { data, error } = await supabase
-        .from('organization_staff')
-        .select('*')
-        .eq('org_id', userRecord.org_id);
-
-      return { data, error };
-    },
-
-    getOrganization: async (userEmail: string) => {
-      if (!userEmail) return { data: null, error: 'Not authenticated' };
-
-      // Try to get user's org_id from employees table first (most common for employee access)
-      let { data: userRecord, error: userError } = await supabase
-        .from('employees')
-        .select('org_id')
-        .eq('email', userEmail)
-        .maybeSingle();
-
-      // If not found in employees, try vendors table
-      if (!userRecord && !userError) {
-        const { data: vendorRecord, error: vendorError } = await supabase
-          .from('vendors')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = vendorRecord;
-        userError = vendorError;
-      }
-
-      // If not found in employees or vendors, try organization_staff (for staff access)
-      if (!userRecord && !userError) {
-        const { data: staffRecord, error: staffError } = await supabase
-          .from('organization_staff')
-          .select('org_id')
-          .eq('email', userEmail)
-          .maybeSingle();
-        userRecord = staffRecord;
-        userError = staffError;
-      }
-
-      if (!userRecord) return { data: null, error: 'User not found' };
-
-      const { data, error } = await supabase
-        .from('organizations')
-        .select('*')
-        .eq('id', userRecord.org_id)
-        .single();
-
-      return { data, error };
-    },
-
-    getSalesData: async (userEmail: string, dateFrom: string, dateTo: string, vendorId?: string) => {
-      if (!userEmail) return { data: null, error: 'Not authenticated' };
-
       try {
-        const requestBody = {
-          date_from: dateFrom,
-          date_to: dateTo,
-          vendor_id: vendorId || 'all',
-          user_email: userEmail
-        };
+        const headers = await getSessionHeaders();
         
-        console.log('Sending sales data request:', requestBody);
-        
-        const { data, error } = await supabase.functions.invoke('get_sales_data', {
-          body: requestBody
+        const { data: result, error } = await supabase.functions.invoke('get_orders', {
+          body: { user_role: userRole, user_email: userEmail },
+          headers
         });
 
         if (error) {
-          console.error('Sales data API error:', error);
-          // Try to get more detailed error information
-          const errorMessage = error.message || error.toString() || 'Failed to fetch sales data';
-          return { data: null, error: errorMessage };
+          return { data: null, error: { message: error.message } };
         }
 
-        if (!data) {
-          console.error('No data received from sales API');
-          return { data: null, error: 'No data received from server' };
-        }
-
-        // Check if the response indicates an actual error (not just a success message)
-        if (!data.success) {
-          console.error('Sales data response error:', data);
-          return { data: null, error: data.error || 'Request failed' };
-        }
-
-        return { data: data.data, error: null };
-
+        return { data: result.data, error: null };
       } catch (error: any) {
-        console.error('Error fetching sales data:', error);
-        return { data: null, error: error.message || 'Failed to fetch sales data' };
+        console.error('Error fetching orders:', error);
+        return { data: null, error: { message: 'Failed to fetch orders' } };
       }
     },
-  },
-};
 
-export default apiClient;
+    // Legacy method - now uses backend function
+    getVendorsForStaff: async (userEmail: string) => {
+      return api.data.getVendors(userEmail);
+    },
+
+    // Legacy method - now uses backend function  
+    getEmployees: async (userEmail: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_employees', {
+          body: { user_email: userEmail },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching employees:', error);
+        return { data: null, error: { message: 'Failed to fetch employees' } };
+      }
+    },
+
+    // Legacy method - now uses backend function
+    getOrganizationStaff: async (userEmail: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_organization_staff', {
+          body: { user_email: userEmail },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching organization staff:', error);
+        return { data: null, error: { message: 'Failed to fetch organization staff' } };
+      }
+    },
+
+    // Legacy method - now uses backend function
+    getOrganization: async (userEmail: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_organization', {
+          body: { user_email: userEmail },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching organization:', error);
+        return { data: null, error: { message: 'Failed to fetch organization' } };
+      }
+    },
+
+    // Keep the existing getSalesData method as it already uses backend
+    getSalesData: async (userEmail: string, fromDate: string, toDate: string, vendorFilter?: string) => {
+      try {
+        const requestBody = {
+          user_email: userEmail,
+          from_date: fromDate,
+          to_date: toDate,
+          vendor_filter: vendorFilter
+        };
+
+        console.log('Sending sales data request:', requestBody);
+        
+        const { data, error } = await supabase.functions.invoke('get_sales_data', {
+          body: requestBody,
+          headers: await getSessionHeaders()
+        });
+
+        if (error) {
+          console.error('Sales data error:', error);
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching sales data:', error);
+        return { data: null, error: { message: 'Failed to fetch sales data' } };
+      }
+    }
+  }
+};

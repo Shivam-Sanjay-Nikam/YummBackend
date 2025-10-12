@@ -7,7 +7,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Plus, Edit3, UtensilsCrossed, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { MenuItem, MenuItemStatus } from '../../types';
 import { api } from '../../services/api';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import { useAuthStore } from '../../store/authStore';
 import { confirmManager } from '../../components/ui/ConfirmDialog';
 import { useRealtimeMenuItems } from '../../hooks/useRealtimeData';
@@ -34,12 +34,9 @@ export const VendorMenu: React.FC = () => {
     if (!user?.user_id) return;
 
     try {
-      const { data, error } = await supabase
-        .from('menu_items')
-        .select('*')
-        .eq('vendor_id', user.user_id)
-        .order('created_at', { ascending: false });
-
+      // Use the API service instead of direct database query to avoid RLS issues
+      const { data, error } = await api.data.getMenuItems(user.user_id);
+      
       if (error) throw error;
       setMenuItems(data || []);
     } catch (error: any) {
