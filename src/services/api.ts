@@ -123,30 +123,39 @@ export const api = {
           return { data: null, error: { message: 'User not authenticated' } };
         }
 
-        // Call the edge function with user email for authentication
-        const { data: result, error } = await supabase.functions.invoke('create_employee', {
-          body: {
+        // Check if email already exists
+        const { data: existingEmployee } = await supabase
+          .from('employees')
+          .select('email')
+          .eq('email', data.email)
+          .eq('org_id', user.org_id);
+
+        if (existingEmployee && existingEmployee.length > 0) {
+          return { data: null, error: { message: 'Email already exists' } };
+        }
+
+        // Create employee using direct database call
+        const { data: employee, error } = await supabase
+          .from('employees')
+          .insert({
+            org_id: user.org_id,
             name: data.name,
             email: data.email,
-            password: data.password,
+            password: data.password, // Note: In production, hash this password
             balance: data.balance || 0,
             phone_number: data.phone_number,
-            special_number: data.special_number,
-            user_email: user.email
-          }
-        });
+            special_number: data.special_number
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('Employee creation error:', error);
           return { data: null, error: { message: error.message || 'Failed to create employee' } };
         }
 
-        if (!result || result.error) {
-          return { data: null, error: { message: result?.error || 'Failed to create employee' } };
-        }
-
         return {
-          data: result,
+          data: employee,
           error: null
         };
       } catch (error: any) {
