@@ -1,24 +1,7 @@
-import axios from 'axios';
 import { supabase } from '../lib/supabase';
-import { authenticateUser, createUser } from './auth';
 import { useAuthStore } from '../store/authStore';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://zylgjcnwazyaudhdnakc.supabase.co/functions/v1';
-
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Custom auth interceptor - we'll handle this differently since we're not using Supabase Auth
-apiClient.interceptors.request.use(async (config: any) => {
-  // Add Supabase function headers
-  config.headers['apikey'] = import.meta.env.VITE_SUPABASE_ANON_KEY;
-  config.headers['Authorization'] = `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`;
-  return config;
-});
+// All API calls now use Supabase Edge Functions directly
 
 export const api = {
   auth: {
