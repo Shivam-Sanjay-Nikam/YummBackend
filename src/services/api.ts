@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/authStore';
 
 export const api = {
   auth: {
-    // Use Edge Function for organization registration
+    // Use direct database calls for organization registration
     registerOrganization: async (data: { 
       org_name: string; 
       staff_name?: string;
@@ -17,32 +17,76 @@ export const api = {
       special_number: string;
     }) => {
       try {
-        const { data: result, error } = await supabase.functions.invoke('register_organization', {
-          body: {
-            org_name: data.org_name,
-            staff_name: data.staff_name || 'Admin',
-            staff_email: data.staff_email,
-            staff_password: data.staff_password,
-            staff_phone: data.staff_phone,
+        // Check if email already exists
+        const { data: existingStaff } = await supabase
+          .from('organization_staff')
+          .select('email')
+          .eq('email', data.staff_email);
+
+        if (existingStaff && existingStaff.length > 0) {
+          return { error: { message: 'Email already exists' } };
+        }
+
+        // Check if special number already exists
+        const { data: existingOrg } = await supabase
+          .from('organizations')
+          .select('special_number')
+          .eq('special_number', data.special_number);
+
+        if (existingOrg && existingOrg.length > 0) {
+          return { error: { message: 'Special number already exists. Please choose a different 6-digit number.' } };
+        }
+
+        // Create organization first
+        const { data: organization, error: orgError } = await supabase
+          .from('organizations')
+          .insert({
+            name: data.org_name,
             latitude: data.latitude,
             longitude: data.longitude,
             special_number: data.special_number
-          }
-        });
+          })
+          .select()
+          .single();
 
-        if (error) {
-          return { error: { message: error.message } };
+        if (orgError || !organization) {
+          return { error: { message: `Failed to create organization: ${orgError?.message}` } };
         }
 
-        if (!result.success) {
-          return { error: { message: result.error } };
+        // Create staff member
+        const { data: staff, error: staffError } = await supabase
+          .from('organization_staff')
+          .insert({
+            org_id: organization.id,
+            name: data.staff_name || 'Admin',
+            email: data.staff_email,
+            password: data.staff_password, // Note: In production, hash this password
+            phone_number: data.staff_phone
+          })
+          .select()
+          .single();
+
+        if (staffError || !staff) {
+          // Clean up organization if staff creation failed
+          await supabase.from('organizations').delete().eq('id', organization.id);
+          return { error: { message: `Failed to create staff: ${staffError?.message}` } };
         }
 
         return {
           data: {
-            organization: result.organization,
-            staff: result.staff,
-            auth: result.auth
+            organization: {
+              id: organization.id,
+              name: organization.name,
+              special_number: organization.special_number,
+              created_at: organization.created_at
+            },
+            staff: {
+              id: staff.id,
+              name: staff.name,
+              email: staff.email,
+              phone_number: staff.phone_number,
+              created_at: staff.created_at
+            }
           }
         };
 
@@ -52,32 +96,87 @@ export const api = {
       }
     },
 
-    // Use Edge Function for login
+    // Use direct database authentication
     login: async (email: string, password: string) => {
       try {
-        const { data: result, error } = await supabase.functions.invoke('auth_login', {
-          body: {
-            email,
-            password,
-            action: 'signin'
+        // Check organization_staff first
+        const { data: staffData, error: staffError } = await supabase
+          .from('organization_staff')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (staffData && !staffError) {
+          // Simple password check (in production, use proper hashing)
+          if (staffData.password === password) {
+            return { 
+              data: { 
+                user: {
+                  id: staffData.id,
+                  email: staffData.email,
+                  name: staffData.name,
+                  role: 'organization_staff',
+                  org_id: staffData.org_id,
+                  user_id: staffData.id
+                }
+              }, 
+              error: null 
+            };
           }
-        });
-
-        if (error) {
-          return { data: null, error: { message: error.message } };
         }
 
-        if (!result.success) {
-          return { data: null, error: { message: result.error } };
+        // Check employees
+        const { data: employeeData, error: employeeError } = await supabase
+          .from('employees')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (employeeData && !employeeError) {
+          if (employeeData.password === password) {
+            return { 
+              data: { 
+                user: {
+                  id: employeeData.id,
+                  email: employeeData.email,
+                  name: employeeData.name,
+                  role: 'employee',
+                  org_id: employeeData.org_id,
+                  user_id: employeeData.id,
+                  balance: employeeData.balance
+                }
+              }, 
+              error: null 
+            };
+          }
         }
 
-        return { 
-          data: { 
-            user: result.user,
-            session: result.session
-          }, 
-          error: null 
-        };
+        // Check vendors
+        const { data: vendorData, error: vendorError } = await supabase
+          .from('vendors')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (vendorData && !vendorError) {
+          if (vendorData.password === password) {
+            return { 
+              data: { 
+                user: {
+                  id: vendorData.id,
+                  email: vendorData.email,
+                  name: vendorData.name,
+                  role: 'vendor',
+                  org_id: vendorData.org_id,
+                  user_id: vendorData.id
+                }
+              }, 
+              error: null 
+            };
+          }
+        }
+
+        return { data: null, error: { message: 'Invalid credentials' } };
       } catch (error: any) {
         console.error('Login error:', error);
         return { data: null, error: { message: 'Login failed' } };
@@ -106,35 +205,39 @@ export const api = {
           return { data: null, error: { message: 'User not authenticated' } };
         }
 
-        // Call the edge function with user email for authentication
-        const { data: result, error } = await supabase.functions.invoke('create_employee', {
-          body: {
+        // Check if email already exists
+        const { data: existingEmployee } = await supabase
+          .from('employees')
+          .select('email')
+          .eq('email', data.email)
+          .eq('org_id', user.org_id);
+
+        if (existingEmployee && existingEmployee.length > 0) {
+          return { data: null, error: { message: 'Email already exists' } };
+        }
+
+        // Create employee using direct database call
+        const { data: employee, error } = await supabase
+          .from('employees')
+          .insert({
+            org_id: user.org_id,
             name: data.name,
             email: data.email,
-            password: data.password,
+            password: data.password, // Note: In production, hash this password
             balance: data.balance || 0,
             phone_number: data.phone_number,
-            special_number: data.special_number,
-            user_email: user.email
-          }
-        });
+            special_number: data.special_number
+          })
+          .select()
+          .single();
 
         if (error) {
           console.error('Employee creation error:', error);
-          console.error('Error details:', {
-            message: error.message,
-            status: error.status,
-            statusText: error.statusText
-          });
           return { data: null, error: { message: error.message || 'Failed to create employee' } };
         }
 
-        if (!result || result.error) {
-          return { data: null, error: { message: result?.error || 'Failed to create employee' } };
-        }
-
         return {
-          data: result,
+          data: employee,
           error: null
         };
       } catch (error: any) {
