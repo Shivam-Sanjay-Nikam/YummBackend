@@ -8,16 +8,31 @@ import { useAuthStore } from '../store/authStore';
 
 // Simple session validation using the new auth helper
 const validateSession = async () => {
+  console.log('=== validateSession Debug ===');
   const session = await getSession();
+  console.log('Raw session from getSession():', session);
+  console.log('Session exists:', !!session);
+  console.log('Session access_token exists:', !!session?.access_token);
+  console.log('Session expires_at:', session?.expires_at);
+  console.log('Current timestamp:', Math.floor(Date.now() / 1000));
+  console.log('Token expired:', session?.expires_at ? session.expires_at < Math.floor(Date.now() / 1000) : 'unknown');
+  
   if (!session) {
+    console.log('No session found - throwing error');
     throw new Error('No valid session found. Please log in again.');
   }
+  console.log('Session validation passed');
   return session;
 };
 
 // Helper function to get session headers for API calls
 const getSessionHeaders = async () => {
   const session = await validateSession();
+  console.log('Session details:', { 
+    hasAccessToken: !!session.access_token, 
+    tokenLength: session.access_token?.length,
+    expiresAt: session.expires_at 
+  });
   return {
     'Authorization': `Bearer ${session.access_token}`,
     'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -42,6 +57,18 @@ export const api = {
       special_number: string;
     }) => {
       try {
+        console.log('=== Register Organization Debug ===');
+        console.log('Registration data being sent:', {
+          org_name: data.org_name,
+          staff_name: data.staff_name,
+          staff_email: data.staff_email,
+          staff_password: '[HIDDEN]',
+          staff_phone: data.staff_phone,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          special_number: data.special_number
+        });
+        
         const { data: result, error } = await supabase.functions.invoke('register_organization', {
           body: {
             org_name: data.org_name,
@@ -55,13 +82,27 @@ export const api = {
           }
         });
 
+        console.log('=== Registration Response ===');
+        console.log('Raw result:', result);
+        console.log('Raw error:', error);
+
         if (error) {
+          console.log('=== Registration Error ===');
+          console.log('Error message:', error.message);
+          console.log('Error details:', error);
           return { error: { message: error.message } };
         }
 
         if (!result.success) {
+          console.log('=== Registration Failed ===');
+          console.log('Result error:', result.error);
           return { error: { message: result.error } };
         }
+
+        console.log('=== Registration Success ===');
+        console.log('Organization created:', result.organization);
+        console.log('Staff created:', result.staff);
+        console.log('Auth created:', result.auth);
 
         return {
           data: {
@@ -845,18 +886,24 @@ export const api = {
       try {
         const headers = await getSessionHeaders();
         
-        const { data: result, error } = await supabase.functions.invoke('update_menu_item', {
-          body: {
-            ...data
+        // According to backend README, update_menu_item expects PUT method
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update_menu_item`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': headers.Authorization,
+            'apikey': headers.apikey,
+            'Content-Type': 'application/json'
           },
-          headers
+          body: JSON.stringify(data)
         });
 
-        if (error) {
-          return { data: null, error: error.message };
+        const result = await response.json();
+        
+        if (response.ok) {
+          return { data: result.data, error: null };
+        } else {
+          return { data: null, error: result.error || 'Failed to update menu item' };
         }
-
-        return { data: result.data, error: null };
       } catch (error: any) {
         console.error('Update menu item error:', error);
         return { data: null, error: error.message || 'Failed to update menu item' };
@@ -869,18 +916,24 @@ export const api = {
       try {
         const headers = await getSessionHeaders();
         
-        const { data: result, error } = await supabase.functions.invoke('delete_menu_item', {
-          body: {
-            ...data
+        // According to backend README, delete_menu_item expects DELETE method
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete_menu_item`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': headers.Authorization,
+            'apikey': headers.apikey,
+            'Content-Type': 'application/json'
           },
-          headers
+          body: JSON.stringify(data)
         });
 
-        if (error) {
-          return { data: null, error: error.message };
+        const result = await response.json();
+        
+        if (response.ok) {
+          return { data: result.data, error: null };
+        } else {
+          return { data: null, error: result.error || 'Failed to delete menu item' };
         }
-
-        return { data: result.data, error: null };
       } catch (error: any) {
         console.error('Delete menu item error:', error);
         return { data: null, error: error.message || 'Failed to delete menu item' };
@@ -1011,18 +1064,102 @@ export const api = {
       try {
         const headers = await getSessionHeaders();
         
-        const { data: result, error } = await supabase.functions.invoke('get_organization', {
-          headers
-        });
-
-        if (error) {
-          return { data: null, error: { message: error.message } };
+        console.log('=== getOrganization Debug ===');
+        console.log('Headers being sent:', headers);
+        console.log('Authorization token length:', headers.Authorization?.length);
+        console.log('API key length:', headers.apikey?.length);
+        
+        // Let's also check what user info we have
+        const session = await getSession();
+        console.log('Current user from session:', session?.user);
+        console.log('User email:', session?.user?.email);
+        console.log('User ID:', session?.user?.id);
+        
+        // Let's try to check what role this user has by calling a different function
+        console.log('=== Checking User Role ===');
+        try {
+          // Try to get user role by calling a function that works for any authenticated user
+          const { data: userRole, error: roleError } = await supabase.functions.invoke('get_employee', {
+            body: { user_email: session?.user?.email },
+            headers
+          });
+          console.log('Employee check result:', { userRole, roleError });
+        } catch (e) {
+          console.log('Employee check failed:', e);
+        }
+        
+        // According to backend README, get_organization expects GET method
+        console.log('=== Calling get_organization with GET method ===');
+        console.log('Headers being sent:', headers);
+        console.log('Authorization header:', headers.Authorization);
+        console.log('Authorization header length:', headers.Authorization?.length);
+        
+        let result, error;
+        
+        try {
+          // Use direct fetch with GET method as specified in backend README
+          const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/get_organization`, {
+            method: 'GET',
+            headers: {
+              'Authorization': headers.Authorization,
+              'apikey': headers.apikey,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const responseData = await response.json();
+          console.log('GET response:', responseData);
+          
+          if (response.ok) {
+            result = responseData;
+            error = null;
+          } else {
+            error = { message: responseData.error || 'GET request failed' };
+          }
+        } catch (e) {
+          console.log('GET request failed:', e);
+          error = e;
         }
 
+        console.log('=== getOrganization Response ===');
+        console.log('Raw result:', result);
+        console.log('Raw error:', error);
+        console.log('Result type:', typeof result);
+        console.log('Error type:', typeof error);
+        
+        // Try to get more details about the error
+        if (error) {
+          console.log('=== Error Details ===');
+          console.log('Error message:', (error as any).message);
+          console.log('Error details:', error);
+          console.log('Error context:', (error as any).context);
+          console.log('Error name:', (error as any).name);
+          
+          // Try to get the response body to see the actual error message
+          if ((error as any).context && (error as any).context.body) {
+            try {
+              const errorBody = await (error as any).context.body.text();
+              console.log('Error response body:', errorBody);
+            } catch (e) {
+              console.log('Could not read error body:', e);
+            }
+          }
+          
+          console.log('Full error object:', JSON.stringify(error, null, 2));
+          return { data: null, error: { message: (error as any).message } };
+        }
+
+        console.log('=== Success Response ===');
+        console.log('Result.data:', result.data);
+        console.log('Result.data?.organization:', result.data?.organization);
+        
         // Backend returns { success: boolean, data: { organization: Object } }
         return { data: result.data?.organization || null, error: null };
       } catch (error: any) {
-        console.error('Error fetching organization:', error);
+        console.log('=== Catch Block Error ===');
+        console.log('Caught error:', error);
+        console.log('Error message:', error.message);
+        console.log('Error stack:', error.stack);
         return { data: null, error: { message: 'Failed to fetch organization' } };
       }
     },
@@ -1052,6 +1189,477 @@ export const api = {
       } catch (error: any) {
         console.error('Error fetching sales data:', error);
         return { data: null, error: { message: 'Failed to fetch sales data' } };
+      }
+    },
+
+    getEmployeeAnalytics: async (dateFrom: string, dateTo: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('get_employee_analytics', {
+          body: {
+            date_from: dateFrom,
+            date_to: dateTo
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching employee analytics:', error);
+        return { data: null, error: { message: 'Failed to fetch employee analytics' } };
+      }
+    },
+
+    getVendorAnalytics: async (dateFrom: string, dateTo: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('get_vendor_analytics', {
+          body: {
+            date_from: dateFrom,
+            date_to: dateTo
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching vendor analytics:', error);
+        return { data: null, error: { message: 'Failed to fetch vendor analytics' } };
+      }
+    },
+
+    getStaffAnalytics: async (dateFrom: string, dateTo: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('get_staff_analytics', {
+          body: {
+            date_from: dateFrom,
+            date_to: dateTo
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching staff analytics:', error);
+        return { data: null, error: { message: 'Failed to fetch staff analytics' } };
+      }
+    },
+
+    // Feedback and Complaint System
+    submitFeedback: async (orderId: string | null, feedbackContent: string, rating: number) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('submit_feedback', {
+          body: {
+            order_id: orderId,
+            feedback_content: feedbackContent,
+            rating: rating
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error submitting feedback:', error);
+        return { data: null, error: { message: 'Failed to submit feedback' } };
+      }
+    },
+
+    getFeedback: async (orderId?: string, userId?: string, limit: number = 10, offset: number = 0) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('get_feedback', {
+          body: {
+            order_id: orderId,
+            user_id: userId,
+            limit: limit,
+            offset: offset
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching feedback:', error);
+        return { data: null, error: { message: 'Failed to fetch feedback' } };
+      }
+    },
+
+    updateFeedback: async (feedbackId: string, feedbackContent: string, rating: number) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('update_feedback', {
+          body: {
+            feedback_id: feedbackId,
+            feedback_content: feedbackContent,
+            rating: rating
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error updating feedback:', error);
+        return { data: null, error: { message: 'Failed to update feedback' } };
+      }
+    },
+
+    deleteFeedback: async (feedbackId: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        // According to backend README, delete_feedback expects DELETE method
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete_feedback`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': headers.Authorization,
+            'apikey': headers.apikey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            feedback_id: feedbackId
+          })
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          return { data: result.data, error: null };
+        } else {
+          return { data: null, error: { message: result.error || 'Failed to delete feedback' } };
+        }
+      } catch (error: any) {
+        console.error('Error deleting feedback:', error);
+        return { data: null, error: { message: 'Failed to delete feedback' } };
+      }
+    },
+
+    submitComplaint: async (complaintContent: string, priority: string = 'medium') => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('submit_complaint', {
+          body: {
+            complaint_content: complaintContent,
+            priority: priority
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error submitting complaint:', error);
+        return { data: null, error: { message: 'Failed to submit complaint' } };
+      }
+    },
+
+    getComplaints: async (userId?: string, status?: string, priority?: string, limit: number = 10, offset: number = 0) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('get_complaints', {
+          body: {
+            user_id: userId,
+            status: status,
+            priority: priority,
+            limit: limit,
+            offset: offset
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching complaints:', error);
+        return { data: null, error: { message: 'Failed to fetch complaints' } };
+      }
+    },
+
+    updateComplaint: async (complaintId: string, status?: string, priority?: string, resolutionNotes?: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('update_complaint', {
+          body: {
+            complaint_id: complaintId,
+            status: status,
+            priority: priority,
+            resolution_notes: resolutionNotes
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error updating complaint:', error);
+        return { data: null, error: { message: 'Failed to update complaint' } };
+      }
+    },
+
+    deleteComplaint: async (complaintId: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        // According to backend README, delete_complaint expects DELETE method
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete_complaint`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': headers.Authorization,
+            'apikey': headers.apikey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            complaint_id: complaintId
+          })
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          return { data: result.data, error: null };
+        } else {
+          return { data: null, error: { message: result.error || 'Failed to delete complaint' } };
+        }
+      } catch (error: any) {
+        console.error('Error deleting complaint:', error);
+        return { data: null, error: { message: 'Failed to delete complaint' } };
+      }
+    },
+
+    // Bulk Operations
+    importCsv: async (type: 'employees' | 'vendors' | 'organization_staff', csvData: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('import_csv', {
+          body: {
+            type: type,
+            csvData: csvData
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error importing CSV:', error);
+        return { data: null, error: { message: 'Failed to import CSV' } };
+      }
+    },
+
+    importMenuItemsCsv: async (csvData: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('import_menu_items_csv', {
+          body: {
+            csvData: csvData
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error importing menu items CSV:', error);
+        return { data: null, error: { message: 'Failed to import menu items CSV' } };
+      }
+    },
+
+    // Additional Order Management Functions
+    addOrderItem: async (orderId: string, menuItemId: string, quantity: number) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('add_order_item', {
+          body: {
+            order_id: orderId,
+            menu_item_id: menuItemId,
+            quantity: quantity
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error adding order item:', error);
+        return { data: null, error: { message: 'Failed to add order item' } };
+      }
+    },
+
+    updateOrderItem: async (orderItemId: string, quantity: number) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('update_order_item', {
+          body: {
+            order_item_id: orderItemId,
+            quantity: quantity
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error updating order item:', error);
+        return { data: null, error: { message: 'Failed to update order item' } };
+      }
+    },
+
+    deleteOrderItem: async (orderItemId: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        // According to backend README, delete_order_item expects DELETE method
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete_order_item`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': headers.Authorization,
+            'apikey': headers.apikey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            order_item_id: orderItemId
+          })
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          return { data: result.data, error: null };
+        } else {
+          return { data: null, error: { message: result.error || 'Failed to delete order item' } };
+        }
+      } catch (error: any) {
+        console.error('Error deleting order item:', error);
+        return { data: null, error: { message: 'Failed to delete order item' } };
+      }
+    },
+
+    cancelOrderRequest: async (orderId: string, reason: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('cancel_order_request', {
+          body: {
+            order_id: orderId,
+            reason: reason
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error requesting order cancellation:', error);
+        return { data: null, error: { message: 'Failed to request order cancellation' } };
+      }
+    },
+
+    handleCancelRequest: async (orderId: string, action: 'accept' | 'reject') => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('handle_cancel_request', {
+          body: {
+            order_id: orderId,
+            action: action
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error handling cancel request:', error);
+        return { data: null, error: { message: 'Failed to handle cancel request' } };
+      }
+    },
+
+    // Additional User Management Functions
+    changePassword: async (targetUserId: string, newPassword: string, userType: 'employee' | 'vendor' | 'organization_staff') => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('change_password', {
+          body: {
+            target_user_id: targetUserId,
+            new_password: newPassword,
+            user_type: userType
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error changing password:', error);
+        return { data: null, error: { message: 'Failed to change password' } };
+      }
+    },
+
+    updateEmployeeBalance: async (employeeId: string, newBalance: number) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('update_employee_balance', {
+          body: {
+            employee_id: employeeId,
+            new_balance: newBalance
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error updating employee balance:', error);
+        return { data: null, error: { message: 'Failed to update employee balance' } };
+      }
+    },
+
+    // Organization Management Functions
+    updateOrganization: async (name?: string, latitude?: number, longitude?: number) => {
+      try {
+        const headers = await getSessionHeaders();
+        const { data: result, error } = await supabase.functions.invoke('update_organization', {
+          body: {
+            name: name,
+            latitude: latitude,
+            longitude: longitude
+          },
+          headers
+        });
+
+        if (error) return { data: null, error: { message: error.message } };
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error updating organization:', error);
+        return { data: null, error: { message: 'Failed to update organization' } };
+      }
+    },
+
+    deleteOrganization: async () => {
+      try {
+        const headers = await getSessionHeaders();
+        // According to backend README, delete_organization expects DELETE method
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete_organization`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': headers.Authorization,
+            'apikey': headers.apikey,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        const result = await response.json();
+        
+        if (response.ok) {
+          return { data: result.data, error: null };
+        } else {
+          return { data: null, error: { message: result.error || 'Failed to delete organization' } };
+        }
+      } catch (error: any) {
+        console.error('Error deleting organization:', error);
+        return { data: null, error: { message: 'Failed to delete organization' } };
       }
     }
   }
