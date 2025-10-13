@@ -28,9 +28,9 @@ export interface Organization {
 export interface OrganizationStaff {
   id: string;
   org_id: string;
-  name: string;
+  name: string | null;
   email: string;
-  phone_number?: string;
+  phone_number?: string | null;
   auth_user_id?: string;
   created_at: string;
   updated_at: string;
@@ -39,10 +39,10 @@ export interface OrganizationStaff {
 export interface Employee {
   id: string;
   org_id: string;
-  name: string;
-  email: string;
-  phone_number?: string;
-  special_number?: string;
+  name: string | null;
+  email: string | null;
+  phone_number?: string | null;
+  special_number?: string | null;
   balance: number;
   auth_user_id?: string;
   created_at: string;
@@ -52,11 +52,11 @@ export interface Employee {
 export interface Vendor {
   id: string;
   org_id: string;
-  name: string;
-  email: string;
-  phone_number?: string;
-  latitude?: number;
-  longitude?: number;
+  name: string | null;
+  email: string | null;
+  phone_number?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   auth_user_id?: string;
   created_at: string;
   updated_at: string;
@@ -69,7 +69,7 @@ export interface MenuItem {
   name: string;
   description?: string;
   image_url?: string;
-  price: number;
+  price: number | null;
   status: MenuItemStatus;
   created_at: string;
   updated_at: string;

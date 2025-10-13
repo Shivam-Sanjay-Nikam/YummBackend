@@ -28,6 +28,12 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     // persist session in local storage (set true unless you need custom persistence)
     persistSession: true,
   },
+  realtime: {
+    // Enable realtime for live updates
+    params: {
+      eventsPerSecond: 10,
+    },
+  },
 });
 
 // export type helpers if needed

@@ -147,10 +147,10 @@ export const StaffEmployees: React.FC = () => {
                   {employees.map((employee) => (
                     <tr key={employee.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{employee.name}</div>
+                        <div className="text-sm font-medium text-gray-900">{employee.name || 'Unknown Employee'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-600">{employee.email}</div>
+                        <div className="text-sm text-gray-600">{employee.email || 'No email'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-green-600">
@@ -217,8 +217,8 @@ export const StaffEmployees: React.FC = () => {
                     <Users className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 text-base">{employee.name}</h3>
-                    <p className="text-sm text-gray-600">{employee.email}</p>
+                    <h3 className="font-semibold text-gray-900 text-base">{employee.name || 'Unknown Employee'}</h3>
+                    <p className="text-sm text-gray-600">{employee.email || 'No email'}</p>
                   </div>
                 </div>
                 <div className="text-right">
@@ -541,7 +541,7 @@ const UpdateBalanceModal: React.FC<{
     <Modal isOpen={isOpen} onClose={onClose} title="Update Balance">
       <div className="mb-4">
         <p className="text-sm text-gray-600">
-          Current balance for <span className="font-medium">{employee.name}</span>:
+          Current balance for <span className="font-medium">{employee.name || 'Unknown Employee'}</span>:
         </p>
         <p className="text-2xl font-bold text-gray-900 mt-1">
           ₹{employee.balance.toFixed(2)}
@@ -1080,7 +1080,7 @@ const ChangePasswordModal: React.FC<{
             <Key className="h-6 w-6 text-green-600" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Change Password for {employee.name}
+            Change Password for {employee.name || 'Unknown Employee'}
           </h3>
           <p className="text-sm text-gray-500">
             Enter a new password for this employee. They will need to use this password to log in.

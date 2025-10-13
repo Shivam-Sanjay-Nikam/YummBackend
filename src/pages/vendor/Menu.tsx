@@ -159,7 +159,7 @@ export const VendorMenu: React.FC = () => {
               {item.description && (
                 <p className="text-sm text-gray-600 mb-3 line-clamp-2">{item.description}</p>
               )}
-              <p className="text-lg sm:text-xl font-bold text-green-600">₹{item.price.toFixed(2)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">₹{item.price?.toFixed(2) || '0.00'}</p>
             </CardBody>
           </Card>
         ))}
@@ -335,7 +335,7 @@ const EditMenuItemModal: React.FC<{
     if (item) {
       setName(item.name);
       setDescription(item.description || '');
-      setPrice(item.price.toString());
+      setPrice(item.price?.toString() || '0');
       setStatus(item.status);
     }
   }, [item]);
