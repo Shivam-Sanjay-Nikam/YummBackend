@@ -1,50 +1,76 @@
-# Yuum Backend - Food Ordering System
+# 🚀 Yumm Frontend - Production-Ready React Application
 
-A comprehensive food ordering system built with React, TypeScript, and Supabase.
+## 📋 Overview
 
-## Features
+This is a complete frontend application for the Yumm food ordering system. It's built with React, TypeScript, and integrates with a Supabase backend through Edge Functions.
 
-### For Organization Staff
-- **Dashboard**: Overview of orders, employees, and vendors
-- **Employee Management**: Create and manage employee accounts, update balances
-- **Vendor Management**: Create and manage vendor accounts
+## ✨ Features
 
-### For Employees
-- **Browse Vendors**: View available vendors and their menu items
-- **Shopping Cart**: Add items to cart and manage quantities
-- **Order Management**: Place orders and track order status
-- **Order History**: View past orders and request cancellations
+### 🔐 **Authentication System**
+- Production-ready Supabase authentication
+- No more 429 refresh token errors
+- Proper session management with exponential backoff
+- Role-based access control (Staff, Employee, Vendor)
 
-### For Vendors
-- **Order Management**: View and manage incoming orders
-- **Menu Management**: Add and manage menu items
-- **Order Status Updates**: Update order status and handle cancellation requests
+### 🗄️ **Backend Integration**
+- All data operations use backend Edge Functions
+- No direct database queries from frontend
+- Proper error handling and user feedback
+- Clean separation of concerns
 
-## Tech Stack
+### 🛡️ **Error Handling**
+- React Error Boundary for graceful error handling
+- Comprehensive try-catch blocks
+- User-friendly error messages
+- Graceful fallback for failed operations
 
-- **Frontend**: React 18, TypeScript, Vite
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **Backend**: Supabase (PostgreSQL + Edge Functions)
-- **Authentication**: Supabase Auth
-- **UI Components**: Custom components with Headless UI
+### 📱 **User Interface**
+- Modern, responsive design with Tailwind CSS
+- Mobile-friendly navigation
+- Real-time data updates
+- Intuitive user experience
 
-## Project Structure
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+### Environment Variables
+Create a `.env` file with:
+```
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_API_BASE_URL=your_supabase_functions_url
+```
+
+## 📁 Project Structure
 
 ```
 src/
-├── components/          # Reusable UI components
-│   ├── layout/         # Layout components (Navbar, Sidebar, Layout)
-│   └── ui/             # Basic UI components (Button, Card, Input, etc.)
-├── hooks/              # Custom React hooks
-├── lib/                # External library configurations
+├── components/          # React components
+│   ├── layout/         # Layout components
+│   └── ui/             # UI components
 ├── pages/              # Page components
-│   ├── employee/       # Employee-specific pages
-│   ├── staff/          # Staff-specific pages
-│   ├── vendor/         # Vendor-specific pages
-│   └── Login.tsx       # Authentication page
-├── services/           # API services and external integrations
-├── store/              # State management (Zustand stores)
+│   ├── employee/       # Employee pages
+│   ├── staff/          # Staff pages
+│   └── vendor/         # Vendor pages
+├── services/           # API services
+├── store/              # State management
+├── lib/                # Utilities and configurations
+├── hooks/              # Custom React hooks
 ├── types/              # TypeScript type definitions
 └── utils/              # Utility functions
 
@@ -63,84 +89,61 @@ tests/
 └── README.md              # Test documentation
 ```
 
-## Setup Instructions
+## 🔧 Key Components
 
-### Prerequisites
-- Node.js 18+ and npm
-- Supabase account and project
+### **Authentication**
+- `src/lib/supabaseClient.ts` - Production-ready Supabase client
+- `src/lib/auth.ts` - Safe authentication helpers
+- `src/store/authStore.ts` - Authentication state management
 
-### Installation
+### **API Integration**
+- `src/services/api.ts` - All API calls use backend Edge Functions
+- No direct database queries
+- Proper error handling and authentication
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd yuum-backend
-   ```
+### **Error Handling**
+- `src/components/ErrorBoundary.tsx` - React error boundary
+- Comprehensive error handling throughout the application
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+## 📋 Required Backend Functions
 
-3. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Update `.env` with your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-   VITE_API_BASE_URL=your_supabase_functions_url
-   ```
+The application requires the following backend Edge Functions to be implemented:
 
-4. **Deploy Backend (if not already done)**
-   ```bash
-   # Install Supabase CLI
-   npm install -g supabase
-   
-   # Login to Supabase
-   supabase login
-   
-   # Link to your project
-   supabase link --project-ref your-project-ref
-   
-   # Deploy migrations and functions
-   supabase db push
-   supabase functions deploy
-   ```
+1. `get_vendors` - Fetch vendors with role-based access
+2. `get_menu_items` - Fetch menu items with authentication
+3. `get_orders` - Fetch orders with proper filtering
+4. `get_employees` - Fetch employees with organization filtering
+5. `get_organization_staff` - Fetch staff with access control
+6. `get_organization` - Fetch organization data
 
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
+Complete specifications are documented in `src/MISSING_BACKEND_FUNCTIONS.md`.
 
-## Usage
+## 🎯 User Roles
 
-### 1. Register Organization
-- Visit the application
-- Click "Register here" on the login page
-- Fill in organization details and admin credentials
-- This creates the first staff member
+### **Organization Staff**
+- Manage employees and vendors
+- View organization analytics
+- Manage organization settings
 
-### 2. Staff Operations
-- Login with staff credentials
-- **Dashboard**: View organization overview
-- **Employees**: Create employee accounts and manage balances
-- **Vendors**: Create vendor accounts
+### **Employees**
+- Browse vendor menus
+- Place orders
+- View order history
+- Manage cart
 
-### 3. Employee Operations
-- Login with employee credentials
-- **Browse**: View available vendors and menu items
-- **Cart**: Add items and manage quantities
-- **Orders**: Place orders and track status
+### **Vendors**
+- Manage menu items
+- View and update orders
+- Manage vendor settings
 
-### 4. Vendor Operations
-- Login with vendor credentials
-- **Orders**: View and manage incoming orders
-- **Menu**: Add and manage menu items
+## 🚀 Production Ready
 
-## API Endpoints
+This frontend application is production-ready with:
+- ✅ No refresh token issues
+- ✅ No direct database queries
+- ✅ Proper error handling
+- ✅ Clean architecture
+- ✅ Comprehensive documentation
 
 The application uses Supabase Edge Functions for backend operations:
 
@@ -282,6 +285,6 @@ For detailed test documentation, see [tests/README.md](tests/README.md).
 4. Run tests and linting
 5. Submit a pull request
 
-## License
+## 📝 License
 
 This project is licensed under the MIT License.

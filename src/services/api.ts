@@ -57,6 +57,7 @@ export const api = {
       special_number: string;
     }) => {
       try {
+<<<<<<< HEAD
         console.log('=== Register Organization Debug ===');
         console.log('Registration data being sent:', {
           org_name: data.org_name,
@@ -69,6 +70,8 @@ export const api = {
           special_number: data.special_number
         });
         
+=======
+>>>>>>> upstream/main
         const { data: result, error } = await supabase.functions.invoke('register_organization', {
           body: {
             org_name: data.org_name,
@@ -82,6 +85,7 @@ export const api = {
           }
         });
 
+<<<<<<< HEAD
         console.log('=== Registration Response ===');
         console.log('Raw result:', result);
         console.log('Raw error:', error);
@@ -91,6 +95,14 @@ export const api = {
           console.log('Error message:', error.message);
           console.log('Error details:', error);
           return { error: { message: error.message } };
+=======
+        if (error) {
+          return { error: { message: error.message } };
+        }
+
+        if (!result.success) {
+          return { error: { message: result.error } };
+>>>>>>> upstream/main
         }
 
         if (!result.success) {
@@ -746,7 +758,11 @@ export const api = {
           return { data: null, error: result.error };
         }
 
+<<<<<<< HEAD
         return { data: result.data, error: null };
+=======
+        return { data: result, error: null };
+>>>>>>> upstream/main
       } catch (error: any) {
         console.error('Cancel order request error:', error);
         
@@ -798,6 +814,21 @@ export const api = {
         console.error('Add menu item error:', error);
         return { data: null, error: error.message || 'Failed to add menu item' };
       }
+<<<<<<< HEAD
+=======
+      
+      const { data: result, error } = await supabase.functions.invoke('vendor_add_menu_item', {
+        body: {
+          ...data
+        }
+      });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
+>>>>>>> upstream/main
     },
 
     handleCancelRequest: async (data: { 
@@ -824,6 +855,21 @@ export const api = {
         console.error('Handle cancel request error:', error);
         return { data: null, error: error.message || 'Failed to handle cancel request' };
       }
+<<<<<<< HEAD
+=======
+      
+      const { data: result, error } = await supabase.functions.invoke('handle_cancel_request', {
+        body: {
+          ...data
+        }
+      });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
+>>>>>>> upstream/main
     },
 
     updateOrderStatus: async (data: { 
@@ -849,6 +895,21 @@ export const api = {
         console.error('Update order status error:', error);
         return { data: null, error: error.message || 'Failed to update order status' };
       }
+<<<<<<< HEAD
+=======
+      
+      const { data: result, error } = await supabase.functions.invoke('update_order_status', {
+        body: {
+          ...data
+        }
+      });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
+>>>>>>> upstream/main
     },
 
     deleteOrder: async (data: { 
@@ -873,6 +934,21 @@ export const api = {
         console.error('Delete order error:', error);
         return { data: null, error: error.message || 'Failed to delete order' };
       }
+<<<<<<< HEAD
+=======
+      
+      const { data: result, error } = await supabase.functions.invoke('delete_order', {
+        body: {
+          ...data
+        }
+      });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
+>>>>>>> upstream/main
     },
 
     updateMenuItem: async (data: {
@@ -908,11 +984,27 @@ export const api = {
         console.error('Update menu item error:', error);
         return { data: null, error: error.message || 'Failed to update menu item' };
       }
+<<<<<<< HEAD
+=======
+      
+      const { data: result, error } = await supabase.functions.invoke('update_menu_item', {
+        body: {
+          ...data
+        }
+      });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
+>>>>>>> upstream/main
     },
 
     deleteMenuItem: async (data: {
       menu_item_id: string;
     }) => {
+<<<<<<< HEAD
       try {
         const headers = await getSessionHeaders();
         
@@ -938,6 +1030,24 @@ export const api = {
         console.error('Delete menu item error:', error);
         return { data: null, error: error.message || 'Failed to delete menu item' };
       }
+=======
+      const { user } = useAuthStore.getState();
+      if (!user?.email) {
+        return { data: null, error: 'Not authenticated' };
+      }
+      
+      const { data: result, error } = await supabase.functions.invoke('delete_menu_item', {
+        body: {
+          ...data
+        }
+      });
+
+      if (error) {
+        return { data: null, error: error.message };
+      }
+
+      return { data: result, error: null };
+>>>>>>> upstream/main
     },
   },
 
@@ -946,11 +1056,18 @@ export const api = {
     getVendors: async (userEmail: string) => {
       if (!userEmail) return { data: null, error: 'Not authenticated' };
       
+<<<<<<< HEAD
       try {
         const headers = await getSessionHeaders();
         
         const { data: result, error } = await supabase.functions.invoke('get_vendors', {
           body: { page: 1, limit: 100 },
+=======
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_vendors', {
+          body: { user_email: userEmail },
           headers
         });
 
@@ -958,6 +1075,50 @@ export const api = {
           return { data: null, error: { message: error.message } };
         }
 
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching vendors:', error);
+        return { data: null, error: { message: 'Failed to fetch vendors' } };
+      }
+    },
+
+    getMenuItems: async (vendorId: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_menu_items', {
+          body: { vendor_id: vendorId },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching menu items:', error);
+        return { data: null, error: { message: 'Failed to fetch menu items' } };
+      }
+    },
+
+    getOrders: async (userRole: string, userEmail: string) => {
+      if (!userEmail) return { data: null, error: 'Not authenticated' };
+
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_orders', {
+          body: { user_role: userRole, user_email: userEmail },
+>>>>>>> upstream/main
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+<<<<<<< HEAD
         // Backend returns { success: boolean, data: { vendors: Array, pagination: Object } }
         return { data: result.data?.vendors || [], error: null };
       } catch (error: any) {
@@ -1010,18 +1171,35 @@ export const api = {
       }
     },
 
+=======
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching orders:', error);
+        return { data: null, error: { message: 'Failed to fetch orders' } };
+      }
+    },
+
+>>>>>>> upstream/main
     // Legacy method - now uses backend function
     getVendorsForStaff: async (userEmail: string) => {
       return api.data.getVendors(userEmail);
     },
 
     // Legacy method - now uses backend function  
+<<<<<<< HEAD
     getEmployees: async (_userEmail: string) => {
+=======
+    getEmployees: async (userEmail: string) => {
+>>>>>>> upstream/main
       try {
         const headers = await getSessionHeaders();
         
         const { data: result, error } = await supabase.functions.invoke('get_employees', {
+<<<<<<< HEAD
           body: { page: 1, limit: 100 },
+=======
+          body: { user_email: userEmail },
+>>>>>>> upstream/main
           headers
         });
 
@@ -1029,8 +1207,12 @@ export const api = {
           return { data: null, error: { message: error.message } };
         }
 
+<<<<<<< HEAD
         // Backend returns { success: boolean, data: { employees: Array, pagination: Object } }
         return { data: result.data?.employees || [], error: null };
+=======
+        return { data: result.data, error: null };
+>>>>>>> upstream/main
       } catch (error: any) {
         console.error('Error fetching employees:', error);
         return { data: null, error: { message: 'Failed to fetch employees' } };
@@ -1038,12 +1220,21 @@ export const api = {
     },
 
     // Legacy method - now uses backend function
+<<<<<<< HEAD
     getOrganizationStaff: async (_userEmail: string) => {
       try {
         const headers = await getSessionHeaders();
         
         const { data: result, error } = await supabase.functions.invoke('get_organization_staff_members', {
           body: { page: 1, limit: 100 },
+=======
+    getOrganizationStaff: async (userEmail: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_organization_staff', {
+          body: { user_email: userEmail },
+>>>>>>> upstream/main
           headers
         });
 
@@ -1051,8 +1242,12 @@ export const api = {
           return { data: null, error: { message: error.message } };
         }
 
+<<<<<<< HEAD
         // Backend returns { success: boolean, data: { staff_members: Array, pagination: Object } }
         return { data: result.data?.staff_members || [], error: null };
+=======
+        return { data: result.data, error: null };
+>>>>>>> upstream/main
       } catch (error: any) {
         console.error('Error fetching organization staff:', error);
         return { data: null, error: { message: 'Failed to fetch organization staff' } };
@@ -1060,6 +1255,7 @@ export const api = {
     },
 
     // Legacy method - now uses backend function
+<<<<<<< HEAD
     getOrganization: async (_userEmail: string) => {
       try {
         const headers = await getSessionHeaders();
@@ -1160,17 +1356,45 @@ export const api = {
         console.log('Caught error:', error);
         console.log('Error message:', error.message);
         console.log('Error stack:', error.stack);
+=======
+    getOrganization: async (userEmail: string) => {
+      try {
+        const headers = await getSessionHeaders();
+        
+        const { data: result, error } = await supabase.functions.invoke('get_organization', {
+          body: { user_email: userEmail },
+          headers
+        });
+
+        if (error) {
+          return { data: null, error: { message: error.message } };
+        }
+
+        return { data: result.data, error: null };
+      } catch (error: any) {
+        console.error('Error fetching organization:', error);
+>>>>>>> upstream/main
         return { data: null, error: { message: 'Failed to fetch organization' } };
       }
     },
 
     // Keep the existing getSalesData method as it already uses backend
+<<<<<<< HEAD
     getSalesData: async (_userEmail: string, fromDate: string, toDate: string, vendorFilter?: string) => {
       try {
         const requestBody = {
           date_from: fromDate,
           date_to: toDate,
           vendor_id: vendorFilter
+=======
+    getSalesData: async (userEmail: string, fromDate: string, toDate: string, vendorFilter?: string) => {
+      try {
+        const requestBody = {
+          user_email: userEmail,
+          from_date: fromDate,
+          to_date: toDate,
+          vendor_filter: vendorFilter
+>>>>>>> upstream/main
         };
 
         console.log('Sending sales data request:', requestBody);
@@ -1190,6 +1414,7 @@ export const api = {
         console.error('Error fetching sales data:', error);
         return { data: null, error: { message: 'Failed to fetch sales data' } };
       }
+<<<<<<< HEAD
     },
 
     getEmployeeAnalytics: async (dateFrom: string, dateTo: string) => {
@@ -1661,6 +1886,8 @@ export const api = {
         console.error('Error deleting organization:', error);
         return { data: null, error: { message: 'Failed to delete organization' } };
       }
+=======
+>>>>>>> upstream/main
     }
   }
 };
