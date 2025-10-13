@@ -25,7 +25,7 @@ export const Router: React.FC = () => {
     (async () => {
       await initialize();
     })();
-  }, [initialize]);
+  }, []); // Remove initialize from dependencies to prevent infinite loops
 
   // Check session persistence on window focus
   useEffect(() => {
