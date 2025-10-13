@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import { User, UserRole } from '../types';
+import { User } from '../types';
+import { supabase } from '../lib/supabaseClient';
+import { getSession, signInWithEmailPassword, signOut as authSignOut } from '../lib/auth';
 
 interface AuthState {
   user: User | null;
@@ -8,7 +10,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   initialize: () => Promise<void>;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -21,26 +23,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialize: async () => {
     set({ loading: true });
     
-    // Check if user is stored in localStorage
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        
-        // Validate that the user object has required fields
-        if (user && user.id && user.email && user.role) {
-          set({ user, loading: false });
-        } else {
-          // Invalid user data, clear it
-          localStorage.removeItem('user');
-          set({ user: null, loading: false });
+    try {
+      // Use the new auth helper to get session (no direct supabase.auth calls)
+      const session = await getSession();
+
+      // If no session, just set loading to false
+      if (!session || !session.user) {
+        set({ user: null, loading: false });
+        return;
+      }
+
+      if (session && session.user) {
+        // We have a valid session, try to get user from localStorage first
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser && parsedUser.id && parsedUser.email && parsedUser.role) {
+              // Verify the stored user matches the session user
+              if (parsedUser.id === session.user.id) {
+                set({ user: parsedUser, loading: false });
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing stored user:', e);
+          }
         }
-      } catch (error) {
-        console.error('Error parsing stored user:', error);
+
+        // If no valid stored user, we need to get user details
+        // Since direct DB queries fail due to RLS, we'll use a different approach
+        // For now, we'll sign out and force re-login
+        console.log('No valid stored user found, signing out to force re-login');
+        await authSignOut();
         localStorage.removeItem('user');
         set({ user: null, loading: false });
+        return;
       }
-    } else {
+
+      // No valid session or user details, clear everything
+      localStorage.removeItem('user');
+      set({ user: null, loading: false });
+    } catch (error) {
+      console.error('Error initializing auth:', error);
+      localStorage.removeItem('user');
       set({ user: null, loading: false });
     }
   },
@@ -69,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           balance: data.user.balance,
         };
         
+        
         // Store user in localStorage
         localStorage.setItem('user', JSON.stringify(user));
         set({ user, loading: false });
@@ -83,7 +110,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  logout: () => {
+  logout: async () => {
+    try {
+      // Use the new auth helper for sign out
+      await authSignOut();
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+    
     // Clear all user-related data
     localStorage.removeItem('user');
     localStorage.removeItem('cart'); // Clear cart data too
@@ -97,23 +131,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!user?.email) return;
 
     try {
-      // Import the API here to avoid circular dependencies
-      const { api } = await import('../services/api');
-      const { data, error } = await api.auth.login(user.email, 'dummy'); // This will fail but we can get user data
+      // Check if we have a valid Supabase session using auth helper
+      const session = await getSession();
       
-      // For now, just re-validate the stored user
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const parsedUser = JSON.parse(storedUser);
-        if (parsedUser && parsedUser.id && parsedUser.email && parsedUser.role) {
-          set({ user: parsedUser });
-        } else {
-          get().logout();
+      if (!session) {
+        console.log('No valid session found, logging out');
+        get().logout();
+        return;
+      }
+
+      // Validate the session by checking stored user
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          try {
+            const parsedUser = JSON.parse(storedUser);
+            if (parsedUser && parsedUser.id && parsedUser.email && parsedUser.role) {
+              // Verify the stored user matches the session user
+              if (parsedUser.id === session.user.id) {
+                set({ user: parsedUser });
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Error parsing stored user:', e);
+          }
         }
+
+        // If no valid stored user, sign out
+        console.log('Session validation failed, logging out');
+        get().logout();
+      } catch (error) {
+        console.error('Error validating session:', error);
+        get().logout();
       }
     } catch (error) {
       console.error('Error refreshing user:', error);
-      // If refresh fails, keep the current user (don't log out)
+      // If refresh fails, log out to force re-authentication
+      get().logout();
     }
   },
 }));

@@ -7,7 +7,7 @@ import { Plus, IndianRupee, Users, Edit2, Trash2, MoreVertical, Upload, FileSpre
 import { Employee } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import { useRealtimeEmployees } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
@@ -356,6 +356,7 @@ const AddEmployeeModal: React.FC<{
   onClose: () => void;
   onSuccess: () => void;
 }> = ({ isOpen, onClose, onSuccess }) => {
+  const { user } = useAuthStore();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -374,14 +375,15 @@ const AddEmployeeModal: React.FC<{
         password,
         balance: parseFloat(balance),
       });
-      toast.success('Employee created successfully');
+      toast.success('Employee created successfully! Please refresh the page to see the new employee.');
       onSuccess();
       setName('');
       setEmail('');
       setPassword('');
       setBalance('0');
     } catch (error: any) {
-      toast.error(error.response?.data?.message || 'Failed to create employee');
+      console.error('Employee creation error:', error);
+      toast.error(error.message || 'Failed to create employee');
     } finally {
       setLoading(false);
     }

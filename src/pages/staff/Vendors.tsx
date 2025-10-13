@@ -7,7 +7,7 @@ import { Plus, Store, Edit2, Trash2, FileSpreadsheet, Upload, Key } from 'lucide
 import { Vendor } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import { useRealtimeVendors } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabaseClient';
 
 // Real-time hook for orders
 export const useRealtimeOrders = (onOrderChange: () => void) => {

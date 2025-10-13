@@ -31,6 +31,7 @@ export interface OrganizationStaff {
   name: string;
   email: string;
   phone_number?: string;
+  auth_user_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -43,6 +44,7 @@ export interface Employee {
   phone_number?: string;
   special_number?: string;
   balance: number;
+  auth_user_id?: string;
   created_at: string;
   updated_at: string;
 }
@@ -55,6 +57,7 @@ export interface Vendor {
   phone_number?: string;
   latitude?: number;
   longitude?: number;
+  auth_user_id?: string;
   created_at: string;
   updated_at: string;
 }

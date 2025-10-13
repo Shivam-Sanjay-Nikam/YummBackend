@@ -7,7 +7,7 @@ import { Plus, Users, Edit2, Trash2, FileSpreadsheet, Upload, Key, Eye, EyeOff }
 import { OrganizationStaff } from '../../types';
 import { api } from '../../services/api';
 import { useAuthStore } from '../../store/authStore';
-import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabaseClient';
 import { useRealtimeOrganizationStaff } from '../../hooks/useRealtimeData';
 import toast from 'react-hot-toast';
 
