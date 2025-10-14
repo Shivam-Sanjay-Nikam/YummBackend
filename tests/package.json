@@ -1,0 +1,26 @@
+{
+  "name": "yumm-backend-integration-tests",
+  "version": "1.0.0",
+  "description": "Integration tests for YummBackend application",
+  "main": "integration-test.js",
+  "scripts": {
+    "test": "node integration-test.js",
+    "test:clean": "node integration-test.js --clean",
+    "test:verbose": "node integration-test.js --verbose"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "integration-test",
+    "supabase",
+    "yumm-backend",
+    "e2e-test"
+  ],
+  "author": "YummBackend Team",
+  "license": "MIT"
+}

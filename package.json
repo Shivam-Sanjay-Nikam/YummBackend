@@ -8,7 +8,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p tsconfig.app.json"
+    "typecheck": "tsc --noEmit -p tsconfig.app.json",
+    "test:integration": "cd tests && node run-integration-test.js",
+    "test:integration:verbose": "cd tests && node run-integration-test.js --verbose",
+    "test:integration:clean": "cd tests && node run-integration-test.js --clean",
+    "test:setup-env": "cd tests && node setup-env.js --create-template",
+    "test:validate-env": "cd tests && node setup-env.js --validate"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.9",

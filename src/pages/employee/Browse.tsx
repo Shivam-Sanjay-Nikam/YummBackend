@@ -95,10 +95,7 @@ export const EmployeeBrowse: React.FC = () => {
                   </div>
                   <Badge variant="success">Open</Badge>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{vendor.name}</h3>
-                {vendor.description && (
-                  <p className="text-sm text-gray-600 mb-4">{vendor.description}</p>
-                )}
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">{vendor.name || 'Unknown Vendor'}</h3>
                 <Button onClick={() => loadMenuItems(vendor)} className="w-full">
                   View Menu
                 </Button>
@@ -134,7 +131,7 @@ export const EmployeeBrowse: React.FC = () => {
                     </div>
                     <div className="flex items-center justify-between mt-4">
                       <span className="text-xl font-bold text-green-600">
-                        ₹{item.price.toFixed(2)}
+                        ₹{item.price?.toFixed(2) || '0.00'}
                       </span>
                       <Button size="sm" onClick={() => handleAddToCart(item)}>
                         <Plus className="w-4 h-4 mr-1" />

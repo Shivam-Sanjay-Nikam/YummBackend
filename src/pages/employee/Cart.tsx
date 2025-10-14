@@ -93,7 +93,7 @@ export const EmployeeCart: React.FC = () => {
                       <p className="text-sm text-gray-600 mt-1">{item.menu_item.description}</p>
                     )}
                     <p className="text-sm font-medium text-green-600 mt-2">
-                      ₹{item.menu_item.price.toFixed(2)} each
+                      ₹{item.menu_item.price?.toFixed(2) || '0.00'} each
                     </p>
                   </div>
 

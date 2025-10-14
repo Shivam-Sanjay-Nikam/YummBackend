@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../types';
-import { supabase } from '../lib/supabaseClient';
-import { getSession, signInWithEmailPassword, signOut as authSignOut } from '../lib/auth';
+import { getSession, signOut as authSignOut } from '../lib/auth';
 
 interface AuthState {
   user: User | null;

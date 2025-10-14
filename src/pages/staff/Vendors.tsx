@@ -155,8 +155,8 @@ export const StaffVendors: React.FC = () => {
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-lg font-bold text-gray-900 leading-tight">{vendor.name}</h3>
-                <p className="text-sm text-gray-600 break-all">{vendor.email}</p>
+                <h3 className="text-lg font-bold text-gray-900 leading-tight">{vendor.name || 'Unknown Vendor'}</h3>
+                <p className="text-sm text-gray-600 break-all">{vendor.email || 'No email'}</p>
                 {vendor.phone_number && (
                   <p className="text-sm text-gray-500">{vendor.phone_number}</p>
                 )}
@@ -867,7 +867,7 @@ const ChangePasswordModal: React.FC<{
             <Key className="h-6 w-6 text-green-600" />
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Change Password for {vendor.name}
+            Change Password for {vendor.name || 'Unknown Vendor'}
           </h3>
           <p className="text-sm text-gray-500">
             Enter a new password for this vendor. They will need to use this password to log in.
